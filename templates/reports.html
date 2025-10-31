@@ -2,63 +2,267 @@
 
 {% block title %}Rapports - AI Data Quality{% endblock %}
 
-{% block content %}
-<div class="page-header">
-    <h1>📊 Rapports de qualité</h1>
-    <button class="btn btn-primary" onclick="generateNewReport()">📈 Nouveau rapport</button>
-</div>
-
-<div class="reports-list">
-    {% if reports %}
-        {% for report in reports %}
-        <div class="card report-card">
-            <div class="card-header">
-                <h3>{{ report.report_name }}</h3>
-                <span class="text-muted">{{ report.created_at.strftime('%d/%m/%Y à %H:%M') }}</span>
-            </div>
-            <div class="card-body">
-                <div class="report-summary">
-                    {% if report.results %}
-                        <div class="metric">
-                            <span class="metric-label">Règles validées</span>
-                            <span class="metric-value success">{{ report.results.get('passed', 0) }}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Règles échouées</span>
-                            <span class="metric-value error">{{ report.results.get('failed', 0) }}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Score qualité</span>
-                            <span class="metric-value">{{ report.results.get('quality_score', 0) }}%</span>
-                        </div>
-                    {% else %}
-                        <p class="text-muted">Aucun résultat disponible</p>
-                    {% endif %}
-                </div>
-                <button class="btn btn-outline" onclick="viewReportDetails({{ report.id }})">
-                    Voir les détails
-                </button>
-            </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="empty-state">
-            <p>Aucun rapport généré</p>
-            <p class="text-muted">Exécutez des règles pour générer votre premier rapport</p>
-            <a href="/rules" class="btn btn-primary">Voir les règles</a>
-        </div>
-    {% endif %}
-</div>
+{% block head %}
+<script src="{{ url_for('static', filename='js/reports-dashboard.js') }}"></script>
+<style>
+.report-filters-container {
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+.report-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+.filter-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+.kpis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.kpi-card {
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.kpi-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+.kpi-primary .kpi-icon { background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05)); color: #6366f1; }
+.kpi-success .kpi-icon { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05)); color: #22c55e; }
+.kpi-warning .kpi-icon { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05)); color: #f59e0b; }
+.kpi-info .kpi-icon { background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.05)); color: #0ea5e9; }
+.kpi-value { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; color: var(--text-primary); }
+.kpi-label { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.kpi-trend { font-size: 0.75rem; font-weight: 600; }
+.kpi-trend.positive { color: #22c55e; }
+.kpi-trend.negative { color: #ef4444; }
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.chart-card { background: var(--bg-elevated); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border-color); }
+.chart-card-wide { grid-column: 1 / -1; }
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.chart-header h3 { font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; margin: 0; }
+.chart-body { height: 300px; }
+.chart-card-wide .chart-body { height: 250px; }
+.chart-period-selector { padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-base); }
+.recent-executions { background: var(--bg-elevated); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border-color); margin-bottom: 2rem; }
+.recent-executions-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.recent-executions-header h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; margin: 0; }
+.executions-table { width: 100%; border-collapse: collapse; }
+.executions-table th, .executions-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+.executions-table th { font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.executions-table tr:hover { background: var(--bg-base); }
+.status-badge { padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.375rem; }
+.status-success { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.status-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.status-error { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.btn-icon { background: none; border: none; padding: 0.5rem; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+.btn-icon:hover { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+.quality-score-section { margin-bottom: 2rem; }
+.quality-score-card { background: var(--bg-elevated); border-radius: 12px; padding: 2rem; border: 1px solid var(--border-color); }
+.quality-score-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+.quality-score-header h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; margin: 0; }
+.quality-score-period { font-size: 0.875rem; color: var(--text-secondary); }
+.quality-score-body { display: flex; gap: 3rem; align-items: center; }
+.quality-score-circle { position: relative; }
+.quality-score-bg { fill: none; stroke: var(--border-color); stroke-width: 10; }
+.quality-score-progress { fill: none; stroke: #22c55e; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1s; transform: rotate(-90deg); transform-origin: center; }
+.quality-score-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.quality-score-value { font-size: 2.5rem; font-weight: 800; color: var(--text-primary); }
+.quality-score-label { font-size: 0.875rem; color: var(--text-secondary); }
+.quality-score-details { flex: 1; }
+.quality-score-detail { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 0; border-bottom: 1px solid var(--border-color); }
+.quality-score-detail:last-child { border-bottom: none; }
+</style>
 {% endblock %}
 
-{% block scripts %}
-<script>
-function generateNewReport() {
-    alert('Fonctionnalité à implémenter : génération de rapport');
-}
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-graph-up"></i> Rapports de qualité</h1>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn btn-outline" onclick="refreshDashboard()">
+            <i class="bi bi-arrow-clockwise"></i> Actualiser
+        </button>
+        <button class="btn btn-primary" onclick="exportReports()">
+            <i class="bi bi-download"></i> Exporter
+        </button>
+    </div>
+</div>
 
-function viewReportDetails(reportId) {
-    alert(`Voir détails du rapport ${reportId}`);
-}
-</script>
+<div class="report-filters-container">
+    <div class="report-filters">
+        <div class="filter-group">
+            <label><i class="bi bi-database"></i> Source de données</label>
+            <select id="datasourceFilter" onchange="filterReports()">
+                <option value="">Toutes les sources</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="bi bi-calendar-range"></i> Période</label>
+            <select id="periodFilter" onchange="filterReports()">
+                <option value="7">7 derniers jours</option>
+                <option value="30" selected>30 derniers jours</option>
+                <option value="90">90 derniers jours</option>
+                <option value="365">1 an</option>
+                <option value="all">Tout</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="bi bi-funnel"></i> Statut</label>
+            <select id="statusFilter" onchange="filterReports()">
+                <option value="">Tous les statuts</option>
+                <option value="success">Succès</option>
+                <option value="warning">Avertissement</option>
+                <option value="error">Erreur</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="kpis-grid">
+    <div class="kpi-card kpi-primary">
+        <div class="kpi-icon"><i class="bi bi-shield-check"></i></div>
+        <div class="kpi-content">
+            <div class="kpi-value" id="kpi-total-rules">-</div>
+            <div class="kpi-label">Règles actives</div>
+            <div class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +5 ce mois</div>
+        </div>
+    </div>
+    <div class="kpi-card kpi-success">
+        <div class="kpi-icon"><i class="bi bi-check-circle-fill"></i></div>
+        <div class="kpi-content">
+            <div class="kpi-value" id="kpi-success-rate">-</div>
+            <div class="kpi-label">Taux de succès</div>
+            <div class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +2.3%</div>
+        </div>
+    </div>
+    <div class="kpi-card kpi-warning">
+        <div class="kpi-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div class="kpi-content">
+            <div class="kpi-value" id="kpi-issues">-</div>
+            <div class="kpi-label">Problèmes détectés</div>
+            <div class="kpi-trend negative"><i class="bi bi-arrow-down"></i> -12</div>
+        </div>
+    </div>
+    <div class="kpi-card kpi-info">
+        <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
+        <div class="kpi-content">
+            <div class="kpi-value" id="kpi-executions">-</div>
+            <div class="kpi-label">Exécutions totales</div>
+            <div class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +43</div>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="bi bi-activity"></i> Évolution de la qualité</h3>
+            <select class="chart-period-selector" onchange="updateTimelineChart(this.value)">
+                <option value="7">7 jours</option>
+                <option value="30" selected>30 jours</option>
+                <option value="90">90 jours</option>
+            </select>
+        </div>
+        <div class="chart-body"><canvas id="qualityTimelineChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="bi bi-pie-chart"></i> Répartition par type</h3>
+        </div>
+        <div class="chart-body"><canvas id="ruleTypeChart"></canvas></div>
+    </div>
+    <div class="chart-card chart-card-wide">
+        <div class="chart-header">
+            <h3><i class="bi bi-bar-chart-line"></i> Performance par règle</h3>
+        </div>
+        <div class="chart-body"><canvas id="rulePerformanceChart"></canvas></div>
+    </div>
+</div>
+
+<div class="recent-executions">
+    <div class="recent-executions-header">
+        <h3><i class="bi bi-clock-history"></i> Exécutions récentes</h3>
+        <button class="btn btn-sm btn-outline" onclick="window.location.href='/rules'">
+            <i class="bi bi-plus-circle"></i> Exécuter une règle
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="executions-table">
+            <thead>
+                <tr>
+                    <th><i class="bi bi-shield-check"></i> Règle</th>
+                    <th><i class="bi bi-database"></i> Source</th>
+                    <th><i class="bi bi-calendar"></i> Date</th>
+                    <th><i class="bi bi-check2-square"></i> Résultat</th>
+                    <th><i class="bi bi-percent"></i> Succès</th>
+                    <th><i class="bi bi-gear"></i> Actions</th>
+                </tr>
+            </thead>
+            <tbody id="executionsTableBody">
+                <tr><td colspan="6" class="loading-row"><i class="bi bi-hourglass-split"></i> Chargement...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="quality-score-section">
+    <div class="quality-score-card">
+        <div class="quality-score-header">
+            <h3><i class="bi bi-award"></i> Score de qualité global</h3>
+            <span class="quality-score-period">30 derniers jours</span>
+        </div>
+        <div class="quality-score-body">
+            <div class="quality-score-circle">
+                <svg width="200" height="200">
+                    <circle class="quality-score-bg" cx="100" cy="100" r="90"></circle>
+                    <circle id="qualityScoreCircle" class="quality-score-progress" cx="100" cy="100" r="90"
+                        style="stroke-dasharray: 565.5; stroke-dashoffset: 113.1;"></circle>
+                </svg>
+                <div class="quality-score-text">
+                    <div class="quality-score-value" id="qualityScoreValue">80%</div>
+                    <div class="quality-score-label">Qualité</div>
+                </div>
+            </div>
+            <div class="quality-score-details">
+                <div class="quality-score-detail">
+                    <i class="bi bi-check-circle-fill" style="color: var(--success-color);"></i>
+                    <span>Règles validées: <strong id="validatedRules">0</strong></span>
+                </div>
+                <div class="quality-score-detail">
+                    <i class="bi bi-x-circle-fill" style="color: var(--danger-color);"></i>
+                    <span>Règles échouées: <strong id="failedRules">0</strong></span>
+                </div>
+                <div class="quality-score-detail">
+                    <i class="bi bi-database" style="color: var(--info-color);"></i>
+                    <span>Lignes analysées: <strong id="analyzedRows">0</strong></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

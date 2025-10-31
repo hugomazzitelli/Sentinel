@@ -4,23 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Sentinel - AI Data Quality{% endblock %}</title>
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
     {% block head %}{% endblock %}
 </head>
 <body>
     <nav class="navbar" id="navbar">
         <div class="container">
             <a href="/" class="nav-brand">
-                <h1>⚡ Sentinel</h1>
+                <i class="bi bi-shield-check"></i>
+                <h1>Sentinel</h1>
             </a>
             <ul class="nav-links">
-                <li><a href="/" class="{{ 'active' if request.path == '/' }}">Accueil</a></li>
-                <li><a href="/datasources" class="{{ 'active' if request.path == '/datasources' }}">Sources</a></li>
-                <li><a href="/rules" class="{{ 'active' if request.path == '/rules' }}">Règles</a></li>
-                <li><a href="/reports" class="{{ 'active' if request.path == '/reports' }}">Rapports</a></li>
+                <li><a href="/" class="{{ 'active' if request.path == '/' }}">
+                    <i class="bi bi-house-door"></i>
+                    <span>Accueil</span>
+                </a></li>
+                <li><a href="/datasources" class="{{ 'active' if request.path == '/datasources' }}">
+                    <i class="bi bi-database"></i>
+                    <span>Sources</span>
+                </a></li>
+                <li><a href="/rules" class="{{ 'active' if '/rules' in request.path }}">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Règles</span>
+                </a></li>
+                <li><a href="/reports" class="{{ 'active' if request.path == '/reports' }}">
+                    <i class="bi bi-graph-up"></i>
+                    <span>Rapports</span>
+                </a></li>
                 <li>
                     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode" title="Changer le thème">
-                        <span id="theme-icon">🌙</span>
+                        <i id="theme-icon" class="bi bi-moon-stars"></i>
                     </button>
                 </li>
             </ul>
@@ -33,7 +55,7 @@
 
     <footer>
         <div class="container">
-            <p>⚡ Sentinel - AI Data Quality Platform</p>
+            <p><i class="bi bi-shield-check"></i> Sentinel - AI Data Quality Platform</p>
             <p style="margin-top: 0.5rem; font-size: 0.9rem;">
                 Propulsé par Flask, Great Expectations & Ollama
             </p>
@@ -47,21 +69,23 @@
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme') || 'light';
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            
+
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
-            
+
             // Update icon
-            document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            const icon = document.getElementById('theme-icon');
+            icon.className = newTheme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
         }
-        
+
         // Load theme from localStorage
         (function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
-            document.getElementById('theme-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+            const icon = document.getElementById('theme-icon');
+            icon.className = savedTheme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
         })();
-        
+
         // Navbar scroll effect
         window.addEventListener('scroll', function() {
             const navbar = document.getElementById('navbar');

@@ -1789,3 +1789,356 @@ main {
   outline: 2px solid var(--sentinel-cyan);
   outline-offset: 2px;
 }
+
+/* ===========================================
+   BOOTSTRAP ICONS STYLING
+   =========================================== */
+
+/* Navbar icons */
+.nav-links i {
+  font-size: 0.9rem;
+  margin-right: 0.5rem;
+}
+
+/* Reduce icon size globally */
+.bi {
+  font-size: 1rem;
+}
+
+/* Specific icon sizes */
+.bi-lg {
+  font-size: 1.2rem;
+}
+
+.bi-xl {
+  font-size: 1.5rem;
+}
+
+.bi-2xl {
+  font-size: 2rem;
+}
+
+/* Button icons */
+.btn i {
+  margin-right: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.btn i:only-child {
+  margin-right: 0;
+}
+
+/* Card header icons */
+.card-header i {
+  font-size: 1rem;
+}
+
+/* Feature card icons - slightly larger but not huge */
+.feature-card i {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--sentinel-cyan);
+}
+
+/* Theme toggle button styling */
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.theme-toggle:hover {
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.theme-toggle i {
+  font-size: 1.1rem;
+}
+
+/* Nav brand icon */
+.nav-brand i {
+  font-size: 1.3rem;
+  margin-right: 0.5rem;
+  color: var(--sentinel-cyan);
+}
+
+/* ===========================================
+   EXECUTION RESULTS MODAL
+   =========================================== */
+
+#executionResultsModal .modal-content {
+  max-width: 800px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.execution-result-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.execution-result-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.execution-result-icon.success {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  color: var(--success-color);
+}
+
+.execution-result-icon.error {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger-color);
+}
+
+.execution-result-icon.warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  color: var(--warning-color);
+}
+
+.execution-result-title {
+  flex: 1;
+}
+
+.execution-result-title h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.execution-result-title .badge {
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+/* KPIs Grid */
+.execution-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.execution-kpi-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+  transition: all var(--duration-base) var(--ease-out);
+}
+
+.execution-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
+}
+
+.execution-kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+}
+
+.execution-kpi-value.success {
+  color: var(--success-color);
+}
+
+.execution-kpi-value.error {
+  color: var(--danger-color);
+}
+
+.execution-kpi-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* Progress Ring */
+.progress-ring-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 2rem 0;
+}
+
+.progress-ring {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.progress-ring svg {
+  transform: rotate(-90deg);
+}
+
+.progress-ring-circle-bg {
+  fill: none;
+  stroke: var(--border-color);
+  stroke-width: 10;
+}
+
+.progress-ring-circle {
+  fill: none;
+  stroke: var(--success-color);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s var(--ease-out);
+}
+
+.progress-ring-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.progress-ring-percentage {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.progress-ring-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Failed Expectations */
+.failed-expectations {
+  margin-top: 2rem;
+}
+
+.failed-expectations h4 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--danger-color);
+}
+
+.failed-expectation-item {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.failed-expectation-item:last-child {
+  margin-bottom: 0;
+}
+
+.failed-expectation-header {
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.failed-expectation-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: var(--danger-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+}
+
+.failed-expectation-content {
+  flex: 1;
+}
+
+.failed-expectation-content strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+}
+
+.failed-expectation-content span {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Success State */
+.execution-success-message {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.execution-success-message i {
+  font-size: 3rem;
+  color: var(--success-color);
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.execution-success-message p {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Chart container */
+.execution-chart {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.execution-chart h4 {
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* Modal actions */
+.execution-modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.execution-modal-actions .btn {
+  flex: 1;
+}
+
