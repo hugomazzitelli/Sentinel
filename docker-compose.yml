@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/dataquality
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - db
+      - ollama
+    command: flask run --host=0.0.0.0
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dataquality
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull a model on startup (optional, can be done later)
+    # entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull llama2 && wait"]
+
+volumes:
+  postgres_data:
+  ollama_data:

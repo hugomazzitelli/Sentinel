@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Rapports - AI Data Quality{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Rapports de qualité</h1>
+    <button class="btn btn-primary" onclick="generateNewReport()">+ Nouveau rapport</button>
+</div>
+
+<div class="reports-list">
+    {% if reports %}
+        {% for report in reports %}
+        <div class="card report-card">
+            <div class="card-header">
+                <h3>{{ report.report_name }}</h3>
+                <span class="text-muted">{{ report.created_at.strftime('%d/%m/%Y à %H:%M') }}</span>
+            </div>
+            <div class="card-body">
+                <div class="report-summary">
+                    {% if report.results %}
+                        <div class="metric">
+                            <span class="metric-label">Règles validées</span>
+                            <span class="metric-value success">{{ report.results.get('passed', 0) }}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Règles échouées</span>
+                            <span class="metric-value error">{{ report.results.get('failed', 0) }}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Score qualité</span>
+                            <span class="metric-value">{{ report.results.get('quality_score', 0) }}%</span>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucun résultat disponible</p>
+                    {% endif %}
+                </div>
+                <button class="btn btn-outline" onclick="viewReportDetails({{ report.id }})">
+                    Voir les détails
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>Aucun rapport généré</p>
+            <p class="text-muted">Exécutez des règles pour générer votre premier rapport</p>
+            <a href="/rules" class="btn btn-primary">Voir les règles</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function generateNewReport() {
+    alert('Fonctionnalité à implémenter : génération de rapport');
+}
+
+function viewReportDetails(reportId) {
+    alert(`Voir détails du rapport ${reportId}`);
+}
+</script>
+{% endblock %}

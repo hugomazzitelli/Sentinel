@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Sources de données - AI Data Quality{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Sources de données</h1>
+    <button class="btn btn-primary" onclick="showAddDataSourceModal()">+ Ajouter une source</button>
+</div>
+
+<div class="datasources-list">
+    {% if datasources %}
+        {% for ds in datasources %}
+        <div class="card datasource-card">
+            <div class="card-header">
+                <h3>{{ ds.name }}</h3>
+                <span class="badge badge-{{ ds.source_type }}">{{ ds.source_type }}</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Créée le {{ ds.created_at.strftime('%d/%m/%Y') }}</p>
+                <div class="actions">
+                    <button class="btn btn-secondary" onclick="analyzeDataSource({{ ds.id }})">
+                        🤖 Analyser avec l'IA
+                    </button>
+                    <button class="btn btn-outline">Voir les règles</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>Aucune source de données configurée</p>
+            <p class="text-muted">Ajoutez votre première source pour commencer</p>
+            <button class="btn btn-primary" onclick="showAddDataSourceModal()">Ajouter une source</button>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal pour ajouter une source -->
+<div id="addDataSourceModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Ajouter une source de données</h2>
+            <button class="close-btn" onclick="closeModal('addDataSourceModal')">&times;</button>
+        </div>
+        <form id="addDataSourceForm" onsubmit="submitDataSource(event)">
+            <div class="form-group">
+                <label for="ds-name">Nom de la source</label>
+                <input type="text" id="ds-name" name="name" required placeholder="Ex: Base de production">
+            </div>
+            <div class="form-group">
+                <label for="ds-type">Type</label>
+                <select id="ds-type" name="source_type" required>
+                    <option value="postgresql">PostgreSQL</option>
+                    <option value="mysql">MySQL</option>
+                    <option value="csv">CSV</option>
+                    <option value="sqlite">SQLite</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="ds-connection">Chaîne de connexion</label>
+                <input type="text" id="ds-connection" name="connection_string" required
+                       placeholder="postgresql://user:pass@host:5432/dbname">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('addDataSourceModal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Ajouter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal pour afficher les suggestions IA -->
+<div id="aiSuggestionsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Suggestions de règles par l'IA</h2>
+            <button class="close-btn" onclick="closeModal('aiSuggestionsModal')">&times;</button>
+        </div>
+        <div id="suggestions-content" class="suggestions-list">
+            <p class="text-center">Analyse en cours...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showAddDataSourceModal() {
+    document.getElementById('addDataSourceModal').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+async function submitDataSource(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData);
+
+    try {
+        const response = await fetch('/api/datasources', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            alert('Source ajoutée avec succès !');
+            location.reload();
+        } else {
+            alert('Erreur lors de l\'ajout de la source');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Erreur réseau');
+    }
+}
+
+async function analyzeDataSource(datasourceId) {
+    document.getElementById('aiSuggestionsModal').style.display = 'flex';
+
+    try {
+        const response = await fetch(`/api/datasources/${datasourceId}/analyze`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            displaySuggestions(result.suggestions);
+        } else {
+            alert('Erreur lors de l\'analyse');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Erreur réseau');
+    }
+}
+
+function displaySuggestions(suggestions) {
+    const container = document.getElementById('suggestions-content');
+
+    if (!suggestions || suggestions.length === 0) {
+        container.innerHTML = '<p>Aucune suggestion disponible</p>';
+        return;
+    }
+
+    let html = '<div class="suggestions-grid">';
+    suggestions.forEach(suggestion => {
+        html += `
+            <div class="suggestion-card">
+                <h4>${suggestion.rule_name}</h4>
+                <p><strong>Table:</strong> ${suggestion.table}</p>
+                <p><strong>Colonne:</strong> ${suggestion.column}</p>
+                <p><strong>Type:</strong> ${suggestion.rule_type}</p>
+                <p class="priority priority-${suggestion.priority}">${suggestion.priority}</p>
+                <button class="btn btn-sm btn-primary" onclick="createRuleFromSuggestion(${JSON.stringify(suggestion).replace(/"/g, '&quot;')})">
+                    Créer cette règle
+                </button>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+function createRuleFromSuggestion(suggestion) {
+    // TODO: Implement rule creation from suggestion
+    alert('Fonctionnalité à implémenter : création de règle depuis suggestion');
+}
+</script>
+{% endblock %}
