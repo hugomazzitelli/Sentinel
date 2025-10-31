@@ -35,8 +35,8 @@ docker-compose up --build
 ```
 
 3. **Accéder à l'application**
-- Frontend : http://localhost:5000
-- API : http://localhost:5000/api
+- Frontend : http://localhost:5001
+- API : http://localhost:5001/api
 - Ollama : http://localhost:11434
 - PostgreSQL : localhost:5432
 
