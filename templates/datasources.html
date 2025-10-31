@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>💾 Sources de données</h1>
-    <button class="btn btn-primary" onclick="showAddDataSourceModal()">⚡ Ajouter une source</button>
+    <h1><i class="bi bi-database"></i> Sources de données</h1>
+    <button class="btn btn-primary" onclick="showAddDataSourceModal()"><i class="bi bi-plus-circle"></i> Ajouter une source</button>
 </div>
 
 <div class="datasources-list">
@@ -20,18 +20,19 @@
                 <p class="text-muted">Créée le {{ ds.created_at.strftime('%d/%m/%Y') }}</p>
                 <div class="actions">
                     <button class="btn btn-secondary" onclick="analyzeDataSource({{ ds.id }})">
-                        🤖 Analyser avec l'IA
+                        <i class="bi bi-robot"></i> Analyser avec l'IA
                     </button>
-                    <button class="btn btn-outline">Voir les règles</button>
+                    <button class="btn btn-outline"><i class="bi bi-shield-check"></i> Voir les règles</button>
                 </div>
             </div>
         </div>
         {% endfor %}
     {% else %}
         <div class="empty-state">
+            <i class="bi bi-database bi-2xl" style="margin-bottom: 1rem; color: var(--text-muted);"></i>
             <p>Aucune source de données configurée</p>
             <p class="text-muted">Ajoutez votre première source pour commencer</p>
-            <button class="btn btn-primary" onclick="showAddDataSourceModal()">Ajouter une source</button>
+            <button class="btn btn-primary" onclick="showAddDataSourceModal()"><i class="bi bi-plus-circle"></i> Ajouter une source</button>
         </div>
     {% endif %}
 </div>
@@ -40,7 +41,7 @@
 <div id="addDataSourceModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h2>Ajouter une source de données</h2>
+            <h2><i class="bi bi-plus-circle"></i> Ajouter une source de données</h2>
             <button class="close-btn" onclick="closeModal('addDataSourceModal')">&times;</button>
         </div>
         <form id="addDataSourceForm" onsubmit="submitDataSource(event)">
