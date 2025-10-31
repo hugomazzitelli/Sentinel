@@ -212,17 +212,19 @@ class FlowEditor {
         
         nodeEl.addEventListener('mousedown', (e) => {
             if (e.target.classList.contains('node-port')) return;
-            
+
             isDragging = true;
-            const rect = nodeEl.getBoundingClientRect();
             const canvasRect = this.canvas.getBoundingClientRect();
-            
-            // Calculate offset from mouse to node position
+
+            // Calculate offset in canvas coordinate space (accounting for pan and scale)
+            const mouseCanvasX = (e.clientX - canvasRect.left - this.panOffset.x) / this.scale;
+            const mouseCanvasY = (e.clientY - canvasRect.top - this.panOffset.y) / this.scale;
+
             dragOffset = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
+                x: mouseCanvasX - node.position.x,
+                y: mouseCanvasY - node.position.y
             };
-            
+
             this.selectNode(node.id);
             e.stopPropagation();
         });
@@ -230,9 +232,15 @@ class FlowEditor {
         const onMouseMove = (e) => {
             if (isDragging) {
                 const canvasRect = this.canvas.getBoundingClientRect();
-                // Direct positioning without transform issues
-                node.position.x = ((e.clientX - canvasRect.left - dragOffset.x) - this.panOffset.x) / this.scale;
-                node.position.y = ((e.clientY - canvasRect.top - dragOffset.y) - this.panOffset.y) / this.scale;
+
+                // Convert mouse position to canvas coordinate space
+                const mouseCanvasX = (e.clientX - canvasRect.left - this.panOffset.x) / this.scale;
+                const mouseCanvasY = (e.clientY - canvasRect.top - this.panOffset.y) / this.scale;
+
+                // Apply the offset to maintain grip point
+                node.position.x = mouseCanvasX - dragOffset.x;
+                node.position.y = mouseCanvasY - dragOffset.y;
+
                 nodeEl.style.left = `${node.position.x}px`;
                 nodeEl.style.top = `${node.position.y}px`;
                 this.updateEdges();
@@ -360,7 +368,7 @@ class FlowEditor {
     completeConnection(targetNodeId, targetPort) {
         if (this.connectingFrom && this.connectingFrom !== targetNodeId) {
             const edgeId = `edge_${this.connectingFrom}_${targetNodeId}_${targetPort || 'input'}`;
-            
+
             // Check if edge already exists
             if (!this.edges.find(e => e.id === edgeId)) {
                 const edge = {
@@ -371,13 +379,17 @@ class FlowEditor {
                     targetPort: targetPort || 'input',
                     label: ''
                 };
-                
+
                 this.edges.push(edge);
                 this.updateEdges();
+
+                // Update input display for the target node
+                this.updateNodeConnectedInputsDisplay(targetNodeId);
+
                 this.dispatchEvent('edgeCreated', edge);
             }
         }
-        
+
         this.cancelConnection();
     }
     
@@ -513,26 +525,49 @@ class FlowEditor {
     }
     
     deleteNode(nodeId) {
+        // Find nodes that were connected to this node
+        const connectedNodes = new Set();
+        this.edges.forEach(e => {
+            if (e.source === nodeId) connectedNodes.add(e.target);
+            if (e.target === nodeId) connectedNodes.add(e.source);
+        });
+
         // Remove node
         this.nodes = this.nodes.filter(n => n.id !== nodeId);
-        
+
         // Remove connected edges
         this.edges = this.edges.filter(e => e.source !== nodeId && e.target !== nodeId);
-        
+
         // Remove DOM element
         const nodeEl = document.getElementById(nodeId);
         if (nodeEl) {
             nodeEl.remove();
         }
-        
+
         this.updateEdges();
+
+        // Update displays of all nodes that were connected
+        connectedNodes.forEach(id => {
+            this.updateNodeConnectedInputsDisplay(id);
+        });
+
         this.deselectAll();
         this.dispatchEvent('nodeDeleted', nodeId);
     }
     
     deleteEdge(edgeId) {
+        // Find the edge before deleting to update its target node
+        const edge = this.edges.find(e => e.id === edgeId);
+        const targetNodeId = edge ? edge.target : null;
+
         this.edges = this.edges.filter(e => e.id !== edgeId);
         this.updateEdges();
+
+        // Update input display for the target node
+        if (targetNodeId) {
+            this.updateNodeConnectedInputsDisplay(targetNodeId);
+        }
+
         this.deselectAll();
         this.dispatchEvent('edgeDeleted', edgeId);
     }
@@ -541,7 +576,7 @@ class FlowEditor {
         const node = this.nodes.find(n => n.id === nodeId);
         if (node) {
             node.data = { ...node.data, ...data };
-            
+
             // Update visual if label changed
             const nodeEl = document.getElementById(nodeId);
             if (nodeEl && data.label) {
@@ -550,7 +585,92 @@ class FlowEditor {
                     header.childNodes[0].textContent = data.label;
                 }
             }
+
+            // Refresh connected nodes display
+            this.updateNodeConnectedInputsDisplay(nodeId);
         }
+    }
+
+    getConnectedInputs(nodeId) {
+        // Find all edges that target this node
+        const incomingEdges = this.edges.filter(e => e.target === nodeId);
+
+        // Map to source nodes with their port information
+        return incomingEdges.map(edge => {
+            const sourceNode = this.nodes.find(n => n.id === edge.source);
+            return {
+                port: edge.targetPort,
+                sourceNode: sourceNode,
+                edge: edge
+            };
+        }).filter(item => item.sourceNode !== undefined);
+    }
+
+    updateNodeConnectedInputsDisplay(nodeId) {
+        const node = this.nodes.find(n => n.id === nodeId);
+        if (!node) return;
+
+        const nodeEl = document.getElementById(nodeId);
+        if (!nodeEl) return;
+
+        // Only update for nodes that should display input values
+        const displayInputTypes = ['comparison', 'logical', 'condition', 'check', 'function'];
+        if (!displayInputTypes.includes(node.type)) return;
+
+        const connectedInputs = this.getConnectedInputs(nodeId);
+
+        // Remove existing input value displays
+        const existingDisplays = nodeEl.querySelectorAll('.node-input-value');
+        existingDisplays.forEach(el => el.remove());
+
+        // Add input value displays for each connected input
+        connectedInputs.forEach(({ port, sourceNode }) => {
+            const targetPort = nodeEl.querySelector(`.node-port.input[data-port="${port}"]`);
+            if (!targetPort) return;
+
+            // Create value display element
+            const valueDisplay = document.createElement('div');
+            valueDisplay.className = 'node-input-value';
+
+            // Get display value from source node
+            let displayValue = '';
+            if (sourceNode.type === 'field') {
+                displayValue = sourceNode.data.fieldName || '(champ)';
+            } else if (sourceNode.type === 'value') {
+                displayValue = sourceNode.data.value || '(valeur)';
+            } else if (sourceNode.type === 'function') {
+                displayValue = `${sourceNode.data.functionName}()`;
+            } else {
+                displayValue = sourceNode.data.label || sourceNode.type;
+            }
+
+            valueDisplay.textContent = displayValue;
+            valueDisplay.style.cssText = `
+                position: absolute;
+                left: -8px;
+                top: ${targetPort.style.top};
+                transform: translateX(-100%) translateY(-50%);
+                background: rgba(99, 102, 241, 0.1);
+                border: 1px solid rgba(99, 102, 241, 0.3);
+                border-radius: 6px;
+                padding: 4px 8px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: #6366f1;
+                white-space: nowrap;
+                pointer-events: none;
+                backdrop-filter: blur(4px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            `;
+
+            nodeEl.appendChild(valueDisplay);
+        });
+    }
+
+    updateAllNodeInputDisplays() {
+        this.nodes.forEach(node => {
+            this.updateNodeConnectedInputsDisplay(node.id);
+        });
     }
     
     updateTransform() {
@@ -610,7 +730,7 @@ class FlowEditor {
     
     loadFromConfig(config) {
         this.clear();
-        
+
         if (config.nodes) {
             config.nodes.forEach(node => {
                 const newNode = {
@@ -623,20 +743,25 @@ class FlowEditor {
                 this.renderNode(newNode);
             });
         }
-        
+
         if (config.edges) {
             config.edges.forEach(edge => {
                 this.edges.push({
                     id: edge.id,
                     source: edge.source,
                     target: edge.target,
+                    targetPort: edge.targetPort || 'input',
+                    sourcePort: edge.sourcePort || 'output',
                     label: edge.label || ''
                 });
             });
         }
-        
+
         this.updateEdges();
-        
+
+        // Update all input displays after loading
+        this.updateAllNodeInputDisplays();
+
         // Auto-fit after loading
         setTimeout(() => this.fitView(), 100);
     }
