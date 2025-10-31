@@ -38,6 +38,11 @@ def reports():
     all_reports = QualityReport.query.order_by(QualityReport.created_at.desc()).all()
     return render_template('reports.html', reports=all_reports)
 
+@app.route('/rules/builder')
+def rule_builder():
+    """Visual rule builder with conditional logic"""
+    return render_template('rule_builder_visual.html')
+
 # API Endpoints
 @app.route('/api/datasources', methods=['GET', 'POST'])
 def api_datasources():

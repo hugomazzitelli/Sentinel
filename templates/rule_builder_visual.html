@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}Éditeur visuel - Sentinel{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flow-editor.css') }}?v=3">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🔧 Éditeur visuel de règles</h1>
+        <p class="subtitle" style="margin-top: 0.5rem;">Créez des règles conditionnelles avec un éditeur de flow visuel</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn btn-outline" onclick="window.location.href='/rules'">← Retour</button>
+        <button class="btn btn-primary" onclick="saveRule()">💾 Sauvegarder</button>
+    </div>
+</div>
+
+<!-- Rule Info Panel -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Nom de la règle</label>
+                <input type="text" id="rule-name" placeholder="Ma règle conditionnelle">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Source de données</label>
+                <select id="rule-datasource">
+                    <option value="">Sélectionner...</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Description</label>
+                <input type="text" id="rule-description" placeholder="Vérifie que...">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Editor Area -->
+<div style="display: grid; grid-template-columns: 250px 1fr 300px; gap: 1.5rem; height: calc(100vh - 400px);">
+    
+    <!-- Left Sidebar - Node Palette -->
+    <div class="card" style="padding: 1rem; overflow-y: auto;">
+        <h3 style="margin-bottom: 1rem; font-size: 1rem;">🧩 Nœuds disponibles</h3>
+        
+        <div class="node-palette">
+            <div class="palette-section">
+                <h4>Flux</h4>
+                <div class="palette-node" draggable="true" data-node-type="start">
+                    <span>🟢</span> Début
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="end">
+                    <span>🔴</span> Fin
+                </div>
+            </div>
+            
+            <div class="palette-section">
+                <h4>Données</h4>
+                <div class="palette-node" draggable="true" data-node-type="field">
+                    <span>📊</span> Champ
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="value">
+                    <span>🔢</span> Valeur
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="function">
+                    <span>⚙️</span> Fonction
+                </div>
+            </div>
+            
+            <div class="palette-section">
+                <h4>Logique</h4>
+                <div class="palette-node" draggable="true" data-node-type="comparison">
+                    <span>⚖️</span> Comparaison
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="logical">
+                    <span>🔗</span> Logique
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="condition">
+                    <span>🔀</span> Condition
+                </div>
+            </div>
+            
+            <div class="palette-section">
+                <h4>Validation</h4>
+                <div class="palette-node" draggable="true" data-node-type="check">
+                    <span>✅</span> Check
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="assert">
+                    <span>⚠️</span> Assert
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Center - Flow Canvas -->
+    <div style="position: relative;">
+        <div id="flow-canvas" style="width: 100%; height: 100%;"></div>
+        
+        <!-- Toolbar -->
+        <div class="flow-toolbar">
+            <button onclick="flowEditor.zoom(0.1)" title="Zoom avant">🔍+</button>
+            <button onclick="flowEditor.zoom(-0.1)" title="Zoom arrière">🔍-</button>
+            <div class="divider"></div>
+            <button onclick="flowEditor.fitView()" title="Ajuster la vue">📐</button>
+            <button onclick="clearCanvas()" title="Effacer">🗑️</button>
+        </div>
+    </div>
+    
+    <!-- Right Sidebar - Properties Panel -->
+    <div class="card" style="padding: 1rem; overflow-y: auto;">
+        <h3 style="margin-bottom: 1rem; font-size: 1rem;">⚙️ Propriétés</h3>
+        
+        <div id="node-properties">
+            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                Sélectionnez un nœud pour voir ses propriétés
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Examples Section -->
+<div style="margin-top: 1.5rem;">
+    <h3 style="margin-bottom: 1rem;">📚 Exemples de règles</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+        <div class="example-card" onclick="loadExample('age_check')">
+            <div class="example-card-icon">🔞</div>
+            <div class="example-card-title">Vérification d'âge</div>
+            <div class="example-card-desc">Les mineurs ne peuvent pas avoir de commandes</div>
+            <div class="example-card-meta">
+                <span>👥 10 nœuds</span>
+                <span>🔗 10 liens</span>
+            </div>
+        </div>
+        
+        <div class="example-card" onclick="loadExample('email_format')">
+            <div class="example-card-icon">✉️</div>
+            <div class="example-card-title">Format d'email</div>
+            <div class="example-card-desc">Les pros doivent avoir un email entreprise</div>
+            <div class="example-card-meta">
+                <span>👥 8 nœuds</span>
+                <span>🔗 8 liens</span>
+            </div>
+        </div>
+        
+        <div class="example-card" onclick="loadExample('price_coherence')">
+            <div class="example-card-icon">💰</div>
+            <div class="example-card-title">Cohérence des prix</div>
+            <div class="example-card-desc">Vérifie les réductions appliquées</div>
+            <div class="example-card-meta">
+                <span>👥 10 nœuds</span>
+                <span>🔗 11 liens</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/flow-editor.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/rule-builder.js') }}?v=3"></script>
+<script>
+let flowEditor;
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    // Create flow editor
+    flowEditor = new FlowEditor('flow-canvas');
+    
+    // Load datasources
+    loadDatasources();
+    
+    // Setup drag & drop for palette
+    setupPaletteDragDrop();
+    
+    // Setup event listeners
+    setupEventListeners();
+});
+
+function setupPaletteDragDrop() {
+    const paletteNodes = document.querySelectorAll('.palette-node');
+    
+    paletteNodes.forEach(node => {
+        node.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('nodeType', node.dataset.nodeType);
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+    });
+}
+
+function setupEventListeners() {
+    const canvas = document.getElementById('flow-canvas');
+    
+    // Node selected
+    canvas.addEventListener('flow:nodeSelected', (e) => {
+        updatePropertiesPanel(e.detail);
+    });
+    
+    // Selection cleared
+    canvas.addEventListener('flow:selectionCleared', () => {
+        clearPropertiesPanel();
+    });
+}
+
+function updatePropertiesPanel(node) {
+    const panel = document.getElementById('node-properties');
+    const type = node.type;
+    
+    let html = `
+        <div class="form-group">
+            <label>Type de nœud</label>
+            <input type="text" value="${type}" disabled style="background: var(--bg-secondary);">
+        </div>
+        <div class="form-group">
+            <label>Label</label>
+            <input type="text" id="node-label" value="${node.data.label}" 
+                   onchange="updateNodeProperty('label', this.value)">
+        </div>
+    `;
+    
+    // Add specific properties based on node type
+    if (type === 'field') {
+        html += `
+            <div class="form-group">
+                <label>Nom du champ</label>
+                <input type="text" id="field-name" placeholder="user.age" 
+                       value="${node.data.fieldName || ''}"
+                       onchange="updateNodeProperty('fieldName', this.value)">
+                <small style="color: var(--text-secondary); font-size: 0.75rem;">
+                    Utilisez la notation pointée (ex: user.age)
+                </small>
+            </div>
+            <div class="form-group">
+                <label>Type de données</label>
+                <select id="field-type" onchange="updateNodeProperty('fieldType', this.value)">
+                    <option value="string" ${node.data.fieldType === 'string' ? 'selected' : ''}>Texte</option>
+                    <option value="number" ${node.data.fieldType === 'number' ? 'selected' : ''}>Nombre</option>
+                    <option value="date" ${node.data.fieldType === 'date' ? 'selected' : ''}>Date</option>
+                    <option value="boolean" ${node.data.fieldType === 'boolean' ? 'selected' : ''}>Booléen</option>
+                    <option value="array" ${node.data.fieldType === 'array' ? 'selected' : ''}>Liste</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'value') {
+        html += `
+            <div class="form-group">
+                <label>Valeur</label>
+                <input type="text" id="node-value" placeholder="18" 
+                       value="${node.data.value || ''}"
+                       onchange="updateNodeProperty('value', this.value)">
+            </div>
+            <div class="form-group">
+                <label>Type de valeur</label>
+                <select id="value-type" onchange="updateNodeProperty('valueType', this.value)">
+                    <option value="string" ${node.data.valueType === 'string' ? 'selected' : ''}>Texte</option>
+                    <option value="number" ${node.data.valueType === 'number' ? 'selected' : ''}>Nombre</option>
+                    <option value="boolean" ${node.data.valueType === 'boolean' ? 'selected' : ''}>Booléen</option>
+                    <option value="null" ${node.data.valueType === 'null' ? 'selected' : ''}>Null</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'comparison') {
+        html += `
+            <div class="form-group">
+                <label>Opérateur</label>
+                <select id="comparison-op" onchange="updateNodeProperty('operator', this.value)">
+                    <option value="==" ${node.data.operator === '==' ? 'selected' : ''}>Égal (==)</option>
+                    <option value="!=" ${node.data.operator === '!=' ? 'selected' : ''}>Différent (!=)</option>
+                    <option value=">" ${node.data.operator === '>' ? 'selected' : ''}>Supérieur (>)</option>
+                    <option value="<" ${node.data.operator === '<' ? 'selected' : ''}>Inférieur (<)</option>
+                    <option value=">=" ${node.data.operator === '>=' ? 'selected' : ''}>Supérieur ou égal (>=)</option>
+                    <option value="<=" ${node.data.operator === '<=' ? 'selected' : ''}>Inférieur ou égal (<=)</option>
+                    <option value="in" ${node.data.operator === 'in' ? 'selected' : ''}>Dans (in)</option>
+                    <option value="not in" ${node.data.operator === 'not in' ? 'selected' : ''}>Pas dans (not in)</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'logical') {
+        html += `
+            <div class="form-group">
+                <label>Opérateur logique</label>
+                <select id="logical-op" onchange="updateNodeProperty('operator', this.value)">
+                    <option value="and" ${node.data.operator === 'and' ? 'selected' : ''}>ET (AND)</option>
+                    <option value="or" ${node.data.operator === 'or' ? 'selected' : ''}>OU (OR)</option>
+                    <option value="not" ${node.data.operator === 'not' ? 'selected' : ''}>NON (NOT)</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'function') {
+        html += `
+            <div class="form-group">
+                <label>Fonction</label>
+                <select id="function-name" onchange="updateNodeProperty('functionName', this.value)">
+                    <option value="length" ${node.data.functionName === 'length' ? 'selected' : ''}>length - Longueur</option>
+                    <option value="count" ${node.data.functionName === 'count' ? 'selected' : ''}>count - Compter</option>
+                    <option value="sum" ${node.data.functionName === 'sum' ? 'selected' : ''}>sum - Somme</option>
+                    <option value="avg" ${node.data.functionName === 'avg' ? 'selected' : ''}>avg - Moyenne</option>
+                    <option value="min" ${node.data.functionName === 'min' ? 'selected' : ''}>min - Minimum</option>
+                    <option value="max" ${node.data.functionName === 'max' ? 'selected' : ''}>max - Maximum</option>
+                    <option value="upper" ${node.data.functionName === 'upper' ? 'selected' : ''}>upper - Majuscules</option>
+                    <option value="lower" ${node.data.functionName === 'lower' ? 'selected' : ''}>lower - Minuscules</option>
+                    <option value="trim" ${node.data.functionName === 'trim' ? 'selected' : ''}>trim - Nettoyer</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'condition') {
+        html += `
+            <div style="padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 6px; margin-bottom: 1rem;">
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
+                    <strong>📖 Comment ça marche ?</strong><br><br>
+                    Le bloc <strong>Condition</strong> permet de créer une logique if-then-else :<br><br>
+                    1️⃣ Connectez une <strong>comparaison</strong> en entrée (ex: age < 18)<br>
+                    2️⃣ Si VRAI → exécute la branche connectée à sa sortie<br>
+                    3️⃣ Si FAUX → la branche est ignorée<br><br>
+                    Exemple : Si mineur → vérifier qu'il n'a pas de commandes
+                </p>
+            </div>
+        `;
+    } else if (type === 'check') {
+        html += `
+            <div class="form-group">
+                <label>Type de validation</label>
+                <select id="check-type" onchange="updateNodeProperty('checkType', this.value)">
+                    <option value="not_null" ${node.data.checkType === 'not_null' ? 'selected' : ''}>Pas null</option>
+                    <option value="unique" ${node.data.checkType === 'unique' ? 'selected' : ''}>Unique</option>
+                    <option value="in_range" ${node.data.checkType === 'in_range' ? 'selected' : ''}>Dans un intervalle</option>
+                    <option value="matches_pattern" ${node.data.checkType === 'matches_pattern' ? 'selected' : ''}>Correspond au motif</option>
+                    <option value="equals" ${node.data.checkType === 'equals' ? 'selected' : ''}>Égal à</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Message d'erreur</label>
+                <input type="text" id="error-message" placeholder="Validation échouée" 
+                       value="${node.data.errorMessage || ''}"
+                       onchange="updateNodeProperty('errorMessage', this.value)">
+            </div>
+        `;
+    } else if (type === 'assert') {
+        html += `
+            <div class="form-group">
+                <label>Message d'erreur</label>
+                <input type="text" id="error-message" placeholder="Assertion échouée" 
+                       value="${node.data.errorMessage || ''}"
+                       onchange="updateNodeProperty('errorMessage', this.value)">
+            </div>
+        `;
+    }
+    
+    html += `
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <button class="btn btn-danger btn-sm" onclick="deleteSelectedNode()" style="width: 100%;">
+                🗑️ Supprimer ce nœud
+            </button>
+        </div>
+    `;
+    
+    panel.innerHTML = html;
+}
+
+function clearPropertiesPanel() {
+    const panel = document.getElementById('node-properties');
+    panel.innerHTML = `
+        <p style="color: var(--text-secondary); font-size: 0.875rem;">
+            Sélectionnez un nœud pour voir ses propriétés
+        </p>
+    `;
+}
+
+function updateNodeProperty(key, value) {
+    if (flowEditor.selectedNode) {
+        flowEditor.updateNodeData(flowEditor.selectedNode.id, { [key]: value });
+    }
+}
+
+function deleteSelectedNode() {
+    if (flowEditor.selectedNode && confirm('Supprimer ce nœud ?')) {
+        flowEditor.deleteNode(flowEditor.selectedNode.id);
+    }
+}
+
+function clearCanvas() {
+    if (confirm('Effacer tout le canvas ?')) {
+        flowEditor.clear();
+    }
+}
+
+async function loadDatasources() {
+    try {
+        const response = await fetch('/api/datasources');
+        const datasources = await response.json();
+        const select = document.getElementById('rule-datasource');
+        
+        datasources.forEach(ds => {
+            const option = document.createElement('option');
+            option.value = ds.id;
+            option.textContent = `${ds.name} (${ds.db_type})`;
+            select.appendChild(option);
+        });
+        
+        if (datasources.length > 0) {
+            select.value = datasources[0].id;
+        }
+    } catch (error) {
+        console.error('Error loading datasources:', error);
+    }
+}
+
+function loadExample(exampleId) {
+    // Get examples from rule-builder.js
+    const rb = new RuleBuilder();
+    rb.loadExamples();
+    const example = rb.examples[exampleId];
+    
+    if (example) {
+        const config = {
+            nodes: example.nodes,
+            edges: example.edges,
+            version: '1.0'
+        };
+        
+        flowEditor.loadFromConfig(config);
+        
+        // Update form fields
+        document.getElementById('rule-name').value = example.name;
+        document.getElementById('rule-description').value = example.description;
+        
+        console.log(`✅ Exemple "${example.name}" chargé avec succès`);
+    }
+}
+
+async function saveRule() {
+    const ruleName = document.getElementById('rule-name').value;
+    const datasource = document.getElementById('rule-datasource').value;
+    const description = document.getElementById('rule-description').value;
+    
+    if (!ruleName || !datasource) {
+        alert('Veuillez remplir le nom et la source de données');
+        return;
+    }
+    
+    const config = flowEditor.exportConfig();
+    
+    // Validate
+    if (config.nodes.length === 0) {
+        alert('Veuillez ajouter au moins un nœud');
+        return;
+    }
+    
+    const hasStart = config.nodes.some(n => n.type === 'start');
+    const hasEnd = config.nodes.some(n => n.type === 'end');
+    
+    if (!hasStart || !hasEnd) {
+        alert('La règle doit contenir au moins un nœud "Début" et un nœud "Fin"');
+        return;
+    }
+    
+    const ruleData = {
+        name: ruleName,
+        datasource_id: parseInt(datasource),
+        description: description,
+        rule_type: 'conditional',
+        rule_config: config
+    };
+    
+    try {
+        const response = await fetch('/api/rules', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(ruleData)
+        });
+        
+        if (response.ok) {
+            alert(`✅ Règle "${ruleName}" sauvegardée avec succès!`);
+            setTimeout(() => {
+                window.location.href = '/rules';
+            }, 1000);
+        } else {
+            throw new Error('Erreur lors de la sauvegarde');
+        }
+    } catch (error) {
+        alert(`❌ Erreur: ${error.message}`);
+    }
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,646 @@
+{% extends "base.html" %}
+
+{% block title %}Éditeur de règle - Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🔧 Éditeur de règle visuel</h1>
+        <p class="subtitle" style="margin-top: 0.5rem;">Créez des règles conditionnelles complexes avec un éditeur visuel</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn btn-outline" onclick="window.location.href='/rules'">← Retour</button>
+        <button class="btn btn-primary" onclick="saveRule()">💾 Sauvegarder</button>
+    </div>
+</div>
+
+<!-- Rule Info Panel -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Nom de la règle</label>
+                <input type="text" id="rule-name" placeholder="Ma règle conditionnelle">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Source de données</label>
+                <select id="rule-datasource">
+                    <option value="">Sélectionner...</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Description</label>
+                <input type="text" id="rule-description" placeholder="Vérifie que...">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Editor Area -->
+<div style="display: grid; grid-template-columns: 250px 1fr 300px; gap: 1.5rem; height: calc(100vh - 400px);">
+    
+    <!-- Left Sidebar - Node Palette -->
+    <div class="card" style="padding: 1rem; overflow-y: auto;">
+        <h3 style="margin-bottom: 1rem; font-size: 1rem;">🧩 Nœuds disponibles</h3>
+        
+        <div class="node-palette">
+            <div class="palette-section">
+                <h4>Conditions</h4>
+                <div class="palette-node" draggable="true" data-node-type="condition">
+                    <span>🔀</span> Si / If
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="comparison">
+                    <span>⚖️</span> Comparaison
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="logical">
+                    <span>🔗</span> ET / OU / NON
+                </div>
+            </div>
+            
+            <div class="palette-section">
+                <h4>Données</h4>
+                <div class="palette-node" draggable="true" data-node-type="field">
+                    <span>📊</span> Champ
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="value">
+                    <span>🔢</span> Valeur
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="function">
+                    <span>⚙️</span> Fonction
+                </div>
+            </div>
+            
+            <div class="palette-section">
+                <h4>Validations</h4>
+                <div class="palette-node" draggable="true" data-node-type="check">
+                    <span>✅</span> Vérification
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="assert">
+                    <span>⚠️</span> Assertion
+                </div>
+            </div>
+            
+            <div class="palette-section">
+                <h4>Flux</h4>
+                <div class="palette-node" draggable="true" data-node-type="start">
+                    <span>🟢</span> Début
+                </div>
+                <div class="palette-node" draggable="true" data-node-type="end">
+                    <span>🔴</span> Fin
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Center - React Flow Canvas -->
+    <div class="card" style="padding: 0; position: relative; overflow: hidden;">
+        <div id="react-flow-wrapper" style="width: 100%; height: 100%;"></div>
+        
+        <!-- Toolbar -->
+        <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem; z-index: 10;">
+            <button class="btn btn-sm btn-outline" onclick="zoomIn()">🔍+</button>
+            <button class="btn btn-sm btn-outline" onclick="zoomOut()">🔍−</button>
+            <button class="btn btn-sm btn-outline" onclick="fitView()">📐</button>
+            <button class="btn btn-sm btn-outline" onclick="clearCanvas()">🗑️</button>
+        </div>
+        
+        <!-- Mini Map -->
+        <div id="minimap" style="position: absolute; bottom: 1rem; right: 1rem; width: 150px; height: 100px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-elevated);"></div>
+    </div>
+    
+    <!-- Right Sidebar - Properties Panel -->
+    <div class="card" style="padding: 1rem; overflow-y: auto;">
+        <h3 style="margin-bottom: 1rem; font-size: 1rem;">⚙️ Propriétés</h3>
+        
+        <div id="node-properties">
+            <div class="empty-state" style="padding: 2rem 1rem; border: none;">
+                <p style="font-size: 0.9rem;">Sélectionnez un nœud pour voir ses propriétés</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Example Rules -->
+<div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <h3>💡 Exemples de règles</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+            <div class="example-rule" onclick="loadExample('age_check')">
+                <strong>🔞 Vérification d'âge</strong>
+                <p class="text-muted" style="font-size: 0.9rem; margin-top: 0.5rem;">
+                    Si age < 18 alors length(orders) doit être 0
+                </p>
+            </div>
+            <div class="example-rule" onclick="loadExample('email_format')">
+                <strong>📧 Format email conditionnel</strong>
+                <p class="text-muted" style="font-size: 0.9rem; margin-top: 0.5rem;">
+                    Si type = "pro" alors email doit finir par domaine entreprise
+                </p>
+            </div>
+            <div class="example-rule" onclick="loadExample('price_coherence')">
+                <strong>💰 Cohérence de prix</strong>
+                <p class="text-muted" style="font-size: 0.9rem; margin-top: 0.5rem;">
+                    Si discount > 0 alors price_final < price_original
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.palette-section {
+    margin-bottom: 1.5rem;
+}
+
+.palette-section h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.75rem;
+}
+
+.palette-node {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: grab;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.palette-node:hover {
+    border-color: var(--sentinel-cyan);
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
+}
+
+.palette-node:active {
+    cursor: grabbing;
+}
+
+.palette-node span {
+    font-size: 1.2rem;
+}
+
+.example-rule {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.example-rule:hover {
+    border-color: var(--sentinel-cyan);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* React Flow Custom Styles */
+.react-flow__node {
+    background: var(--bg-base);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 15px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.react-flow__node:hover {
+    border-color: var(--sentinel-cyan);
+    box-shadow: var(--shadow-md);
+}
+
+.react-flow__node.selected {
+    border-color: var(--sentinel-green);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.react-flow__edge {
+    stroke: var(--text-muted);
+    stroke-width: 2;
+}
+
+.react-flow__edge.selected {
+    stroke: var(--sentinel-green);
+    stroke-width: 3;
+}
+
+.react-flow__handle {
+    background: var(--sentinel-cyan);
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--bg-base);
+}
+
+.react-flow__controls {
+    background: var(--bg-base);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.react-flow__controls-button {
+    background: var(--bg-base);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.react-flow__controls-button:hover {
+    background: var(--bg-elevated);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<!-- Simple Canvas-based Visual Editor -->
+<style>
+#flow-canvas {
+    background: linear-gradient(90deg, rgba(99,102,241,0.05) 1px, transparent 1px),
+                linear-gradient(rgba(99,102,241,0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.flow-node {
+    position: absolute;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    min-width: 150px;
+    cursor: move;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.flow-node:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.flow-node.selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.flow-node-header {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.flow-node-type {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+</style>
+
+<script>
+// Simple Flow Editor State
+let nodes = [];
+let edges = [];
+let selectedNode = null;
+let draggedNode = null;
+let nodeCounter = 1;
+
+// Main Flow Component
+function Flow() {
+    const reactFlowWrapper = useRef(null);
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    const [selectedNode, setSelectedNode] = useState(null);
+    const [reactFlowInstance, setReactFlowInstance] = useState(null);
+
+    const onConnect = useCallback((params) => {
+        setEdges((eds) => addEdge({ ...params, animated: true }, eds));
+    }, []);
+
+    const onNodeClick = useCallback((event, node) => {
+        setSelectedNode(node);
+        updatePropertiesPanel(node);
+    }, []);
+
+    const onDrop = useCallback(
+        (event) => {
+            event.preventDefault();
+
+            const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+            const type = event.dataTransfer.getData('application/reactflow');
+
+            if (typeof type === 'undefined' || !type) {
+                return;
+            }
+
+            const position = reactFlowInstance.project({
+                x: event.clientX - reactFlowBounds.left,
+                y: event.clientY - reactFlowBounds.top,
+            });
+
+            const newNode = {
+                id: `node_${Date.now()}`,
+                type: 'default',
+                position,
+                data: { 
+                    label: getNodeLabel(type),
+                    nodeType: type,
+                },
+            };
+
+            setNodes((nds) => nds.concat(newNode));
+        },
+        [reactFlowInstance]
+    );
+
+    const onDragOver = useCallback((event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }, []);
+
+    return React.createElement(
+        'div',
+        { ref: reactFlowWrapper, style: { width: '100%', height: '100%' } },
+        React.createElement(ReactFlow, {
+            nodes,
+            edges,
+            onNodesChange,
+            onEdgesChange,
+            onConnect,
+            onNodeClick,
+            onDrop,
+            onDragOver,
+            onInit: setReactFlowInstance,
+            fitView: true,
+        }, [
+            React.createElement(Controls, { key: 'controls' }),
+            React.createElement(Background, { key: 'background', variant: 'dots', gap: 12, size: 1 }),
+            React.createElement(MiniMap, { 
+                key: 'minimap',
+                nodeColor: (node) => {
+                    if (node.type === 'input') return '#22c55e';
+                    if (node.type === 'output') return '#ef4444';
+                    return '#0ea5e9';
+                },
+            }),
+        ])
+    );
+}
+
+function getNodeLabel(type) {
+    const labels = {
+        'condition': '🔀 Condition',
+        'comparison': '⚖️ Comparaison',
+        'logical': '🔗 Logique',
+        'field': '📊 Champ',
+        'value': '🔢 Valeur',
+        'function': '⚙️ Fonction',
+        'check': '✅ Check',
+        'assert': '⚠️ Assert',
+        'start': '🟢 Début',
+        'end': '🔴 Fin',
+    };
+    return labels[type] || type;
+}
+
+function updatePropertiesPanel(node) {
+    const panel = document.getElementById('node-properties');
+    const type = node.data.nodeType || 'default';
+    
+    let html = `
+        <div class="form-group">
+            <label>Type de nœud</label>
+            <input type="text" value="${type}" disabled>
+        </div>
+        <div class="form-group">
+            <label>Label</label>
+            <input type="text" id="node-label" value="${node.data.label}" onchange="updateNodeLabel('${node.id}', this.value)">
+        </div>
+    `;
+    
+    // Add specific properties based on node type
+    if (type === 'field') {
+        html += `
+            <div class="form-group">
+                <label>Nom du champ</label>
+                <input type="text" id="field-name" placeholder="user.age" value="${node.data.fieldName || ''}">
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="field-type">
+                    <option value="number">Nombre</option>
+                    <option value="string">Texte</option>
+                    <option value="date">Date</option>
+                    <option value="boolean">Booléen</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'comparison') {
+        html += `
+            <div class="form-group">
+                <label>Opérateur</label>
+                <select id="comparison-op">
+                    <option value="==">Égal (==)</option>
+                    <option value="!=">Différent (!=)</option>
+                    <option value=">">Supérieur (>)</option>
+                    <option value="<">Inférieur (<)</option>
+                    <option value=">=">Supérieur ou égal (>=)</option>
+                    <option value="<=">Inférieur ou égal (<=)</option>
+                    <option value="in">Dans (in)</option>
+                    <option value="not in">Pas dans (not in)</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'logical') {
+        html += `
+            <div class="form-group">
+                <label>Opérateur logique</label>
+                <select id="logical-op">
+                    <option value="and">ET (AND)</option>
+                    <option value="or">OU (OR)</option>
+                    <option value="not">NON (NOT)</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'value') {
+        html += `
+            <div class="form-group">
+                <label>Valeur</label>
+                <input type="text" id="node-value" placeholder="18" value="${node.data.value || ''}">
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="value-type">
+                    <option value="number">Nombre</option>
+                    <option value="string">Texte</option>
+                    <option value="boolean">Booléen</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'function') {
+        html += `
+            <div class="form-group">
+                <label>Fonction</label>
+                <select id="function-name">
+                    <option value="length">length() - Longueur</option>
+                    <option value="count">count() - Compteur</option>
+                    <option value="sum">sum() - Somme</option>
+                    <option value="avg">avg() - Moyenne</option>
+                    <option value="min">min() - Minimum</option>
+                    <option value="max">max() - Maximum</option>
+                    <option value="upper">upper() - Majuscules</option>
+                    <option value="lower">lower() - Minuscules</option>
+                    <option value="trim">trim() - Nettoyer espaces</option>
+                </select>
+            </div>
+        `;
+    } else if (type === 'check') {
+        html += `
+            <div class="form-group">
+                <label>Type de vérification</label>
+                <select id="check-type">
+                    <option value="not_null">Non null</option>
+                    <option value="unique">Unique</option>
+                    <option value="in_range">Dans intervalle</option>
+                    <option value="matches_pattern">Correspond au pattern</option>
+                    <option value="custom">Personnalisé</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Message d'erreur</label>
+                <input type="text" id="error-message" placeholder="La valeur est invalide" value="${node.data.errorMessage || ''}">
+            </div>
+        `;
+    }
+    
+    html += `
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <button class="btn btn-danger btn-sm" onclick="deleteSelectedNode('${node.id}')" style="width: 100%;">
+                🗑️ Supprimer ce nœud
+            </button>
+        </div>
+    `;
+    
+    panel.innerHTML = html;
+}
+
+// Render the Flow (using React 17 API)
+ReactDOM.render(
+    React.createElement(Flow),
+    document.getElementById('react-flow-wrapper')
+);
+
+// Drag and Drop handlers
+document.addEventListener('DOMContentLoaded', () => {
+    const paletteNodes = document.querySelectorAll('.palette-node');
+    
+    paletteNodes.forEach(node => {
+        node.addEventListener('dragstart', (event) => {
+            event.dataTransfer.setData('application/reactflow', node.dataset.nodeType);
+            event.dataTransfer.effectAllowed = 'move';
+        });
+    });
+});
+
+// Helper functions
+function updateNodeLabel(nodeId, newLabel) {
+    // Update node label in React Flow
+    console.log('Update node', nodeId, 'with label', newLabel);
+}
+
+function deleteSelectedNode(nodeId) {
+    if (confirm('Supprimer ce nœud ?')) {
+        console.log('Delete node', nodeId);
+        // Implement node deletion
+    }
+}
+
+function zoomIn() {
+    console.log('Zoom in');
+}
+
+function zoomOut() {
+    console.log('Zoom out');
+}
+
+function fitView() {
+    console.log('Fit view');
+}
+
+function clearCanvas() {
+    if (confirm('Effacer tout le canvas ?')) {
+        console.log('Clear canvas');
+    }
+}
+
+function saveRule() {
+    const ruleName = document.getElementById('rule-name').value;
+    const datasource = document.getElementById('rule-datasource').value;
+    const description = document.getElementById('rule-description').value;
+    
+    if (!ruleName || !datasource) {
+        alert('Veuillez remplir le nom et la source de données');
+        return;
+    }
+    
+    // Get nodes and edges from React Flow
+    const ruleData = {
+        name: ruleName,
+        datasource_id: parseInt(datasource),
+        description: description,
+        rule_type: 'conditional',
+        rule_config: {
+            nodes: [], // Will be populated from React Flow state
+            edges: [],
+            version: '1.0'
+        }
+    };
+    
+    console.log('Saving rule:', ruleData);
+    
+    // TODO: Send to backend
+    alert('Fonctionnalité de sauvegarde à implémenter');
+}
+
+function loadExample(exampleId) {
+    console.log('Load example:', exampleId);
+    // TODO: Load example rule
+    alert(`Chargement de l'exemple: ${exampleId}`);
+}
+
+// Load datasources
+async function loadDatasources() {
+    try {
+        const response = await fetch('/api/datasources');
+        if (response.ok) {
+            const datasources = await response.json();
+            const select = document.getElementById('rule-datasource');
+            
+            datasources.forEach(ds => {
+                const option = document.createElement('option');
+                option.value = ds.id;
+                option.textContent = ds.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading datasources:', error);
+    }
+}
+
+loadDatasources();
+</script>
+{% endblock %}

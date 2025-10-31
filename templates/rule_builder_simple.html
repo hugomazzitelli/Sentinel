@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Éditeur de règle - Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🔧 Éditeur de règle conditionn elle</h1>
+        <p class="subtitle" style="margin-top: 0.5rem;">Créez des règles conditionnelles en JSON</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn btn-outline" onclick="window.location.href='/rules'">← Retour</button>
+        <button class="btn btn-primary" onclick="saveRule()">💾 Sauvegarder</button>
+    </div>
+</div>
+
+<!-- Rule Info Panel -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Nom de la règle</label>
+                <input type="text" id="rule-name" placeholder="Ma règle conditionnelle" value="Age Check Rule">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Source de données</label>
+                <select id="rule-datasource">
+                    <option value="">Sélectionner...</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Description</label>
+                <input type="text" id="rule-description" placeholder="Vérifie que..." value="Les mineurs ne doivent pas avoir de commandes">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Editor Area -->
+<div style="display: grid; grid-template-columns: 250px 1fr; gap: 1.5rem;">
+    
+    <!-- Left Sidebar - Examples -->
+    <div class="card" style="padding: 1rem; overflow-y: auto; max-height: calc(100vh - 350px);">
+        <h3 style="margin-bottom: 1rem; font-size: 1rem;">📚 Exemples</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <button class="btn btn-sm btn-outline" onclick="loadExample('age_check')">
+                🔞 Vérif. âge
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="loadExample('email_format')">
+                ✉️ Format email
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="loadExample('price_coherence')">
+                💰 Prix cohérent
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="loadExample('empty')">
+                📄 Vide
+            </button>
+        </div>
+        
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <h4 style="font-size: 0.875rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Types de nœuds</h4>
+            <ul style="font-size: 0.75rem; color: var(--text-secondary); padding-left: 1.25rem; line-height: 1.6;">
+                <li><strong>start</strong>: Début</li>
+                <li><strong>end</strong>: Fin</li>
+                <li><strong>field</strong>: Champ de données</li>
+                <li><strong>value</strong>: Valeur fixe</li>
+                <li><strong>comparison</strong>: Comparaison</li>
+                <li><strong>logical</strong>: Opérateur logique</li>
+                <li><strong>function</strong>: Fonction</li>
+                <li><strong>condition</strong>: If-then-else</li>
+                <li><strong>check</strong>: Validation</li>
+                <li><strong>assert</strong>: Assertion</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Center - JSON Editor -->
+    <div class="card" style="padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1rem;">Configuration JSON</h3>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-sm btn-outline" onclick="validateJSON()">✅ Valider</button>
+                <button class="btn btn-sm btn-outline" onclick="formatJSON()">🎨 Format</button>
+            </div>
+        </div>
+        
+        <textarea 
+            id="rule-json" 
+            style="width: 100%; height: calc(100vh - 450px); font-family: 'Monaco', 'Menlo', monospace; font-size: 0.875rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); resize: vertical;"
+            placeholder='{"nodes": [], "edges": [], "version": "1.0"}'
+        ></textarea>
+        
+        <div id="validation-message" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none;"></div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/rule-builder.js') }}"></script>
+<script>
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    loadDatasources();
+    loadExample('age_check'); // Load default example
+});
+
+async function loadDatasources() {
+    try {
+        const response = await fetch('/api/datasources');
+        const datasources = await response.json();
+        const select = document.getElementById('rule-datasource');
+        
+        datasources.forEach(ds => {
+            const option = document.createElement('option');
+            option.value = ds.id;
+            option.textContent = `${ds.name} (${ds.db_type})`;
+            select.appendChild(option);
+        });
+        
+        // Select first datasource by default
+        if (datasources.length > 0) {
+            select.value = datasources[0].id;
+        }
+    } catch (error) {
+        console.error('Error loading datasources:', error);
+    }
+}
+
+function loadExample(exampleId) {
+    const examples = RuleBuilder.loadExamples();
+    const example = examples.find(ex => ex.id === exampleId);
+    
+    if (example) {
+        const editor = document.getElementById('rule-json');
+        editor.value = JSON.stringify(example.config, null, 2);
+        showMessage(`Exemple "${example.name}" chargé`, 'success');
+    } else if (exampleId === 'empty') {
+        const editor = document.getElementById('rule-json');
+        editor.value = JSON.stringify({
+            nodes: [],
+            edges: [],
+            version: '1.0'
+        }, null, 2);
+        showMessage('Configuration vide chargée', 'success');
+    }
+}
+
+function validateJSON() {
+    const editor = document.getElementById('rule-json');
+    try {
+        const config = JSON.parse(editor.value);
+        
+        // Basic validation
+        if (!config.nodes || !Array.isArray(config.nodes)) {
+            throw new Error('La propriété "nodes" est requise et doit être un tableau');
+        }
+        if (!config.edges || !Array.isArray(config.edges)) {
+            throw new Error('La propriété "edges" est requise et doit être un tableau');
+        }
+        
+        // Check for start and end nodes
+        const hasStart = config.nodes.some(n => n.type === 'start');
+        const hasEnd = config.nodes.some(n => n.type === 'end');
+        
+        if (!hasStart) {
+            throw new Error('La règle doit contenir au moins un nœud de type "start"');
+        }
+        if (!hasEnd) {
+            throw new Error('La règle doit contenir au moins un nœud de type "end"');
+        }
+        
+        showMessage(`✅ Configuration valide (${config.nodes.length} nœuds, ${config.edges.length} connexions)`, 'success');
+    } catch (error) {
+        showMessage(`❌ Erreur: ${error.message}`, 'error');
+    }
+}
+
+function formatJSON() {
+    const editor = document.getElementById('rule-json');
+    try {
+        const config = JSON.parse(editor.value);
+        editor.value = JSON.stringify(config, null, 2);
+        showMessage('JSON formaté avec succès', 'success');
+    } catch (error) {
+        showMessage(`Erreur de formatage: ${error.message}`, 'error');
+    }
+}
+
+function showMessage(message, type = 'info') {
+    const msgDiv = document.getElementById('validation-message');
+    msgDiv.textContent = message;
+    msgDiv.style.display = 'block';
+    
+    if (type === 'success') {
+        msgDiv.style.background = 'rgba(34, 197, 94, 0.1)';
+        msgDiv.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+        msgDiv.style.color = '#22c55e';
+    } else if (type === 'error') {
+        msgDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+        msgDiv.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        msgDiv.style.color = '#ef4444';
+    } else {
+        msgDiv.style.background = 'rgba(99, 102, 241, 0.1)';
+        msgDiv.style.border = '1px solid rgba(99, 102, 241, 0.3)';
+        msgDiv.style.color = 'var(--primary-color)';
+    }
+    
+    setTimeout(() => {
+        msgDiv.style.display = 'none';
+    }, 5000);
+}
+
+async function saveRule() {
+    const ruleName = document.getElementById('rule-name').value;
+    const datasource = document.getElementById('rule-datasource').value;
+    const description = document.getElementById('rule-description').value;
+    const editor = document.getElementById('rule-json');
+    
+    if (!ruleName || !datasource) {
+        showMessage('Veuillez remplir le nom et la source de données', 'error');
+        return;
+    }
+    
+    try {
+        const config = JSON.parse(editor.value);
+        
+        // Validate before saving
+        if (!config.nodes || !config.edges) {
+            throw new Error('Configuration invalide');
+        }
+        
+        const ruleData = {
+            name: ruleName,
+            datasource_id: parseInt(datasource),
+            description: description,
+            rule_type: 'conditional',
+            rule_config: config
+        };
+        
+        const response = await fetch('/api/rules', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(ruleData)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showMessage(`✅ Règle "${ruleName}" sauvegardée avec succès!`, 'success');
+            setTimeout(() => {
+                window.location.href = '/rules';
+            }, 2000);
+        } else {
+            throw new Error('Erreur lors de la sauvegarde');
+        }
+    } catch (error) {
+        showMessage(`❌ Erreur: ${error.message}`, 'error');
+    }
+}
+</script>
+
+{% endblock %}

@@ -5,7 +5,12 @@
 {% block content %}
 <div class="page-header">
     <h1>📋 Règles de qualité</h1>
-    <button class="btn btn-primary" onclick="showCreateRuleModal()">✨ Créer une règle</button>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn btn-secondary" onclick="window.location.href='/rules/builder'">
+            🔧 Éditeur visuel
+        </button>
+        <button class="btn btn-primary" onclick="showCreateRuleModal()">✨ Créer une règle</button>
+    </div>
 </div>
 
 <div class="rules-filter">
