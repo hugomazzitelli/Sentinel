@@ -24,8 +24,22 @@ services:
       - POSTGRES_DB=dataquality
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./data/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
+
+  # Test database with sample data for data quality checks
+  testdb:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=testuser
+      - POSTGRES_PASSWORD=testpass
+      - POSTGRES_DB=testdb
+    volumes:
+      - testdb_data:/var/lib/postgresql/data
+      - ./data/testdata.sql:/docker-entrypoint-initdb.d/testdata.sql
+    ports:
+      - "5433:5432"
 
   ollama:
     image: ollama/ollama:latest
@@ -33,9 +47,10 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    # Pull a model on startup (optional, can be done later)
-    # entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull llama2 && wait"]
+    # Pull a lightweight model on startup
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 10 && ollama pull tinyllama && wait"]
 
 volumes:
   postgres_data:
+  testdb_data:
   ollama_data:

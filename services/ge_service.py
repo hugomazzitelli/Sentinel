@@ -4,6 +4,8 @@ from great_expectations.core import ExpectationSuite, ExpectationConfiguration
 from great_expectations.dataset import PandasDataset
 import pandas as pd
 import json
+from sqlalchemy import create_engine, inspect, MetaData, Table
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class GreatExpectationsService:
@@ -24,36 +26,68 @@ class GreatExpectationsService:
 
     def get_schema_info(self, datasource):
         """
-        Extract schema information from a datasource
-        This is a simplified version - in production, you'd connect to the actual DB
+        Extract schema information from a datasource by connecting to the database
         """
-        # For now, return mock schema info
-        # In production, you'd query the database for table structures
-        schema_info = {
-            'datasource_name': datasource.name,
-            'datasource_type': datasource.source_type,
-            'tables': [
-                {
-                    'name': 'users',
-                    'columns': [
-                        {'name': 'id', 'type': 'integer'},
-                        {'name': 'email', 'type': 'string'},
-                        {'name': 'created_at', 'type': 'timestamp'},
-                        {'name': 'age', 'type': 'integer'}
-                    ]
-                },
-                {
-                    'name': 'orders',
-                    'columns': [
-                        {'name': 'order_id', 'type': 'integer'},
-                        {'name': 'user_id', 'type': 'integer'},
-                        {'name': 'amount', 'type': 'decimal'},
-                        {'name': 'status', 'type': 'string'}
-                    ]
-                }
-            ]
-        }
-        return schema_info
+        try:
+            # Connect to the actual database
+            engine = create_engine(datasource.connection_string)
+            inspector = inspect(engine)
+            
+            # Get all table names
+            table_names = inspector.get_table_names()
+            
+            tables = []
+            for table_name in table_names:
+                columns = []
+                for column in inspector.get_columns(table_name):
+                    columns.append({
+                        'name': column['name'],
+                        'type': str(column['type']),
+                        'nullable': column.get('nullable', True)
+                    })
+                
+                tables.append({
+                    'name': table_name,
+                    'columns': columns
+                })
+            
+            schema_info = {
+                'datasource_name': datasource.name,
+                'datasource_type': datasource.source_type,
+                'tables': tables
+            }
+            
+            engine.dispose()
+            return schema_info
+            
+        except SQLAlchemyError as e:
+            print(f"Error connecting to database: {e}")
+            # Return fallback mock data if connection fails
+            return {
+                'datasource_name': datasource.name,
+                'datasource_type': datasource.source_type,
+                'error': str(e),
+                'tables': [
+                    {
+                        'name': 'users',
+                        'columns': [
+                            {'name': 'id', 'type': 'integer'},
+                            {'name': 'email', 'type': 'string'},
+                            {'name': 'created_at', 'type': 'timestamp'},
+                            {'name': 'age', 'type': 'integer'}
+                        ]
+                    },
+                    {
+                        'name': 'orders',
+                        'columns': [
+                            {'name': 'order_id', 'type': 'integer'},
+                            {'name': 'user_id', 'type': 'integer'},
+                            {'name': 'amount', 'type': 'decimal'},
+                            {'name': 'status', 'type': 'string'}
+                        ]
+                    }
+                ]
+            }
 
     def create_expectation_suite(self, rule):
         """Create a Great Expectations suite from a rule configuration"""
@@ -107,39 +141,79 @@ class GreatExpectationsService:
 
     def execute_rule(self, rule):
         """
-        Execute a quality rule using Great Expectations
+        Execute a quality rule using Great Expectations on real data
         Returns validation results
         """
         try:
-            # In a real implementation, you would:
-            # 1. Connect to the datasource
-            # 2. Load the data
-            # 3. Create expectation suite
-            # 4. Validate the data
-
-            # For now, return a mock result
+            # Get datasource from rule
+            from models import DataSource
+            datasource = DataSource.query.get(rule.datasource_id)
+            
+            if not datasource:
+                return {
+                    'status': 'error',
+                    'details': {'error_message': 'Datasource not found'}
+                }
+            
+            # Connect to the database and load data
+            engine = create_engine(datasource.connection_string)
+            
+            # Get table and column from rule config
+            config = rule.rule_config or {}
+            table_name = config.get('table', 'users')  # Default to users table
+            
+            # Load the table data
+            query = f"SELECT * FROM {table_name} LIMIT 1000"
+            df = pd.read_sql(query, engine)
+            
+            # Create expectation suite
             suite = self.create_expectation_suite(rule)
-
-            # Simulate validation result
+            
+            # Validate the data
+            dataset = PandasDataset(df)
+            
+            # Apply expectations and collect results
+            validation_results = []
+            for expectation in suite.expectations:
+                exp_type = expectation.expectation_type
+                kwargs = expectation.kwargs
+                
+                # Execute the expectation
+                if hasattr(dataset, exp_type):
+                    method = getattr(dataset, exp_type)
+                    result = method(**kwargs)
+                    validation_results.append(result)
+            
+            # Calculate summary statistics
+            total_expectations = len(validation_results)
+            met_expectations = sum(1 for r in validation_results if r.success)
+            success_percentage = (met_expectations / total_expectations * 100) if total_expectations > 0 else 0
+            
+            # Build result
             result = {
-                'status': 'success',
+                'status': 'success' if success_percentage >= 80 else 'warning',
                 'details': {
-                    'expectations_met': 8,
-                    'expectations_total': 10,
-                    'success_percentage': 80.0,
+                    'expectations_met': met_expectations,
+                    'expectations_total': total_expectations,
+                    'success_percentage': round(success_percentage, 2),
+                    'rows_checked': len(df),
                     'failed_expectations': [
                         {
-                            'expectation': 'expect_column_values_to_not_be_null',
-                            'column': rule.rule_config.get('column', 'unknown'),
-                            'failed_count': 5
+                            'expectation': r.expectation_config.expectation_type,
+                            'column': r.expectation_config.kwargs.get('column', 'N/A'),
+                            'success': r.success,
+                            'result': str(r.result)
                         }
+                        for r in validation_results if not r.success
                     ]
                 }
             }
-
+            
+            engine.dispose()
             return result
 
         except Exception as e:
+            print(f"Error executing rule: {e}")
             return {
                 'status': 'error',
                 'details': {

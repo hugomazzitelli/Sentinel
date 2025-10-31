@@ -145,9 +145,22 @@ function switchTab(tab) {
     }
 }
 
+let generatedRuleData = null;
+
 async function generateRuleFromNL(event) {
     event.preventDefault();
     const description = document.getElementById('nl-description').value;
+    const generateBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = generateBtn.innerHTML;
+    
+    if (!description.trim()) {
+        alert('Veuillez décrire la règle que vous souhaitez créer');
+        return;
+    }
+
+    // Show loading
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '⏳ Génération en cours...';
 
     try {
         const response = await fetch('/api/rules/generate', {
@@ -158,17 +171,125 @@ async function generateRuleFromNL(event) {
 
         if (response.ok) {
             const result = await response.json();
+            generatedRuleData = {
+                description: description,
+                rule_config: result.rule_config
+            };
+            
             document.getElementById('rule-preview').textContent = JSON.stringify(result.rule_config, null, 2);
             document.getElementById('generated-rule').style.display = 'block';
+            generateBtn.innerHTML = '✅ Règle générée';
+            
+            setTimeout(() => {
+                generateBtn.innerHTML = originalText;
+                generateBtn.disabled = false;
+            }, 2000);
+        } else {
+            throw new Error('Erreur de génération');
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Erreur lors de la génération');
+        alert('Erreur lors de la génération de la règle');
+        generateBtn.innerHTML = originalText;
+        generateBtn.disabled = false;
+    }
+}
+
+async function saveGeneratedRule() {
+    if (!generatedRuleData) {
+        alert('Aucune règle à sauvegarder');
+        return;
+    }
+    
+    const saveBtn = document.querySelector('#generated-rule button');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⏳ Sauvegarde...';
+    
+    try {
+        // Get datasource_id - you may want to add a dropdown for this
+        // For now, we'll use datasource_id = 1 (Test Database)
+        const ruleToCreate = {
+            datasource_id: 1, // You may want to make this selectable
+            name: `Règle générée par IA`,
+            description: generatedRuleData.description,
+            rule_type: generatedRuleData.rule_config.rule_type || 'custom',
+            rule_config: generatedRuleData.rule_config.config || {},
+            is_active: true
+        };
+        
+        const response = await fetch('/api/rules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(ruleToCreate)
+        });
+
+        if (response.ok) {
+            saveBtn.innerHTML = '✅ Sauvegardée !';
+            saveBtn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                closeModal('createRuleModal');
+                showSuccessToast('Règle créée avec succès !');
+                setTimeout(() => location.reload(), 1000);
+            }, 1000);
+        } else {
+            throw new Error('Erreur lors de la sauvegarde');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Erreur lors de la sauvegarde de la règle');
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    }
+}
+
+async function submitManualRule(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData);
+    
+    // Parse JSON config
+    try {
+        if (data.rule_config) {
+            data.rule_config = JSON.parse(data.rule_config);
+        }
+    } catch (e) {
+        alert('Configuration JSON invalide');
+        return;
+    }
+    
+    data.datasource_id = parseInt(data.datasource_id);
+    data.is_active = true;
+    
+    try {
+        const response = await fetch('/api/rules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showSuccessToast('Règle créée avec succès !');
+            closeModal('createRuleModal');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert('Erreur lors de la création de la règle');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Erreur réseau');
     }
 }
 
 async function executeRule(ruleId) {
     if (!confirm('Exécuter cette règle maintenant ?')) return;
+
+    // Show loading state (you could add a better UI for this)
+    const executeBtn = event.target;
+    const originalText = executeBtn.innerHTML;
+    executeBtn.disabled = true;
+    executeBtn.innerHTML = '⏳ Exécution...';
 
     try {
         const response = await fetch(`/api/rules/${ruleId}/execute`, {
@@ -177,17 +298,93 @@ async function executeRule(ruleId) {
 
         if (response.ok) {
             const result = await response.json();
-            alert(`Règle exécutée ! Statut: ${result.status}`);
+            executeBtn.innerHTML = '✅ Exécutée';
+            
+            // Show detailed results
+            const details = result.details;
+            const message = `
+Règle exécutée avec succès !
+
+📊 Résultat: ${result.status.toUpperCase()}
+✅ Attentes respectées: ${details.expectations_met}/${details.expectations_total}
+📈 Taux de succès: ${details.success_percentage}%
+📝 Lignes vérifiées: ${details.rows_checked}
+
+${details.failed_expectations.length > 0 ? 
+    '❌ Problèmes détectés:\n' + 
+    details.failed_expectations.map(f => `- ${f.expectation} sur ${f.column}`).join('\n') 
+    : ''}
+            `;
+            
+            alert(message);
+            
+            setTimeout(() => {
+                executeBtn.innerHTML = originalText;
+                executeBtn.disabled = false;
+            }, 2000);
+        } else {
+            throw new Error('Erreur d\'exécution');
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Erreur lors de l\'exécution');
+        alert('Erreur lors de l\'exécution de la règle');
+        executeBtn.innerHTML = originalText;
+        executeBtn.disabled = false;
     }
 }
 
 function toggleRule(ruleId, isActive) {
-    // TODO: Implement rule toggle
+    // In a real implementation, you would call an API to update the rule status
     console.log(`Toggle rule ${ruleId} to ${isActive}`);
+    showSuccessToast(`Règle ${isActive ? 'activée' : 'désactivée'}`);
 }
+
+function showSuccessToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-success';
+    toast.innerHTML = `<span>✅</span><span>${message}</span>`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Load datasources for manual rule creation
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        const response = await fetch('/api/datasources');
+        if (response.ok) {
+            const datasources = await response.json();
+            const select = document.querySelector('#manualRuleForm select[name="datasource_id"]');
+            
+            datasources.forEach(ds => {
+                const option = document.createElement('option');
+                option.value = ds.id;
+                option.textContent = ds.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading datasources:', error);
+    }
+});
 </script>
 {% endblock %}

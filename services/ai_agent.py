@@ -6,7 +6,7 @@ import json
 class AIAgent:
     """AI Agent that uses Ollama to suggest and generate data quality rules"""
 
-    def __init__(self, ollama_url='http://localhost:11434', model='llama2'):
+    def __init__(self, ollama_url='http://localhost:11434', model='tinyllama'):
         self.ollama_url = ollama_url
         self.model = model
 
@@ -96,57 +96,147 @@ class AIAgent:
         return self._get_default_suggestions(schema_info)
 
     def _get_default_suggestions(self, schema_info):
-        """Fallback suggestions based on common patterns"""
+        """Fallback suggestions based on common patterns and data types"""
         suggestions = []
+        seen_rules = set()  # Track unique rules to avoid duplicates
 
         for table in schema_info.get('tables', []):
             table_name = table['name']
 
             for column in table.get('columns', []):
                 col_name = column['name']
-                col_type = column['type']
-
-                # ID columns should be unique and not null
-                if 'id' in col_name.lower():
-                    suggestions.append({
-                        'rule_name': f"Uniqueness check for {table_name}.{col_name}",
-                        'rule_type': 'uniqueness',
-                        'table': table_name,
-                        'column': col_name,
-                        'priority': 'high',
-                        'suggested_config': {'column': col_name}
-                    })
-
-                # Email columns should match email format
-                if 'email' in col_name.lower():
-                    suggestions.append({
-                        'rule_name': f"Email format validation for {table_name}.{col_name}",
-                        'rule_type': 'format',
-                        'table': table_name,
-                        'column': col_name,
-                        'priority': 'high',
-                        'suggested_config': {
+                col_type = str(column.get('type', '')).lower()
+                is_nullable = column.get('nullable', True)
+                
+                # Create unique key for this column
+                rule_key = f"{table_name}.{col_name}"
+                
+                # Primary key columns (id) - should be unique and not null
+                if col_name.lower() in ['id', f'{table_name}_id'] or col_name.lower().endswith('_id') and col_name == 'id':
+                    if f"unique_{rule_key}" not in seen_rules:
+                        suggestions.append({
+                            'rule_name': f"Vérifier l'unicité de {col_name} dans {table_name}",
+                            'rule_type': 'uniqueness',
+                            'table': table_name,
                             'column': col_name,
-                            'regex': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-                        }
-                    })
+                            'description': f"S'assurer que chaque {col_name} est unique",
+                            'priority': 'high',
+                            'suggested_config': {
+                                'table': table_name,
+                                'column': col_name
+                            }
+                        })
+                        seen_rules.add(f"unique_{rule_key}")
 
-                # Age columns should have reasonable ranges
-                if 'age' in col_name.lower() and col_type in ['integer', 'int']:
-                    suggestions.append({
-                        'rule_name': f"Age range validation for {table_name}.{col_name}",
-                        'rule_type': 'range',
-                        'table': table_name,
-                        'column': col_name,
-                        'priority': 'medium',
-                        'suggested_config': {
+                # Email columns - format validation
+                elif 'email' in col_name.lower():
+                    if f"format_{rule_key}" not in seen_rules:
+                        suggestions.append({
+                            'rule_name': f"Valider le format des emails dans {table_name}",
+                            'rule_type': 'format',
+                            'table': table_name,
                             'column': col_name,
-                            'min_value': 0,
-                            'max_value': 150
-                        }
-                    })
+                            'description': f"Vérifier que tous les emails respectent le format standard",
+                            'priority': 'high',
+                            'suggested_config': {
+                                'table': table_name,
+                                'column': col_name,
+                                'regex': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+                            }
+                        })
+                        seen_rules.add(f"format_{rule_key}")
+                    
+                    # Also check for nulls in email columns
+                    if f"null_{rule_key}" not in seen_rules and is_nullable:
+                        suggestions.append({
+                            'rule_name': f"Vérifier que les emails ne sont pas vides",
+                            'rule_type': 'null_check',
+                            'table': table_name,
+                            'column': col_name,
+                            'description': f"S'assurer qu'aucun email n'est NULL",
+                            'priority': 'high',
+                            'suggested_config': {
+                                'table': table_name,
+                                'column': col_name
+                            }
+                        })
+                        seen_rules.add(f"null_{rule_key}")
 
-        return suggestions[:10]  # Return top 10
+                # Age columns - range validation
+                elif 'age' in col_name.lower() and ('int' in col_type or 'number' in col_type):
+                    if f"range_{rule_key}" not in seen_rules:
+                        suggestions.append({
+                            'rule_name': f"Valider la plage d'âge dans {table_name}",
+                            'rule_type': 'range',
+                            'table': table_name,
+                            'column': col_name,
+                            'description': f"Vérifier que les âges sont réalistes (0-120 ans)",
+                            'priority': 'medium',
+                            'suggested_config': {
+                                'table': table_name,
+                                'column': col_name,
+                                'min_value': 0,
+                                'max_value': 120
+                            }
+                        })
+                        seen_rules.add(f"range_{rule_key}")
+
+                # Amount/price columns - should be positive
+                elif any(keyword in col_name.lower() for keyword in ['amount', 'price', 'cost', 'total']) and \
+                     ('numeric' in col_type or 'decimal' in col_type or 'float' in col_type or 'int' in col_type):
+                    if f"range_{rule_key}" not in seen_rules:
+                        suggestions.append({
+                            'rule_name': f"Vérifier que {col_name} est positif",
+                            'rule_type': 'range',
+                            'table': table_name,
+                            'column': col_name,
+                            'description': f"S'assurer que {col_name} est supérieur ou égal à 0",
+                            'priority': 'high',
+                            'suggested_config': {
+                                'table': table_name,
+                                'column': col_name,
+                                'min_value': 0
+                            }
+                        })
+                        seen_rules.add(f"range_{rule_key}")
+
+                # Username/name columns - should not be null
+                elif any(keyword in col_name.lower() for keyword in ['name', 'username', 'title']) and \
+                     not col_name.lower().endswith('_id'):
+                    if f"null_{rule_key}" not in seen_rules and is_nullable:
+                        suggestions.append({
+                            'rule_name': f"Vérifier que {col_name} n'est pas vide",
+                            'rule_type': 'null_check',
+                            'table': table_name,
+                            'column': col_name,
+                            'description': f"S'assurer que {col_name} est toujours renseigné",
+                            'priority': 'medium',
+                            'suggested_config': {
+                                'table': table_name,
+                                'column': col_name
+                            }
+                        })
+                        seen_rules.add(f"null_{rule_key}")
+
+                # Date columns - should not be in the future (for created_at, etc.)
+                elif 'created' in col_name.lower() or 'date' in col_name.lower():
+                    if f"null_{rule_key}" not in seen_rules and is_nullable:
+                        suggestions.append({
+                            'rule_name': f"Vérifier que {col_name} est renseigné",
+                            'rule_type': 'null_check',
+                            'table': table_name,
+                            'column': col_name,
+                            'description': f"S'assurer que toutes les dates sont renseignées",
+                            'priority': 'medium',
+                            'suggested_config': {
+                                'table': table_name,
+                                'column': col_name
+                            }
+                        })
+                        seen_rules.add(f"null_{rule_key}")
+
+        # Limit to most relevant suggestions
+        return suggestions[:8]
 
     def nl_to_rule(self, natural_language_description):
         """

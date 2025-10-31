@@ -119,7 +119,18 @@ async function submitDataSource(event) {
 }
 
 async function analyzeDataSource(datasourceId) {
-    document.getElementById('aiSuggestionsModal').style.display = 'flex';
+    const modal = document.getElementById('aiSuggestionsModal');
+    const container = document.getElementById('suggestions-content');
+    
+    // Show modal with loading state
+    modal.style.display = 'flex';
+    container.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <div class="spinner" style="margin: 0 auto 20px;"></div>
+            <p>🤖 L'IA analyse votre source de données...</p>
+            <p class="text-muted">Cela peut prendre quelques secondes</p>
+        </div>
+    `;
 
     try {
         const response = await fetch(`/api/datasources/${datasourceId}/analyze`, {
@@ -128,47 +139,199 @@ async function analyzeDataSource(datasourceId) {
 
         if (response.ok) {
             const result = await response.json();
-            displaySuggestions(result.suggestions);
+            displaySuggestions(result.suggestions, datasourceId);
         } else {
-            alert('Erreur lors de l\'analyse');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <p style="color: #ef4444;">❌ Erreur lors de l'analyse</p>
+                    <button class="btn btn-primary" onclick="analyzeDataSource(${datasourceId})">
+                        Réessayer
+                    </button>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Erreur réseau');
-    }
-}
-
-function displaySuggestions(suggestions) {
-    const container = document.getElementById('suggestions-content');
-
-    if (!suggestions || suggestions.length === 0) {
-        container.innerHTML = '<p>Aucune suggestion disponible</p>';
-        return;
-    }
-
-    let html = '<div class="suggestions-grid">';
-    suggestions.forEach(suggestion => {
-        html += `
-            <div class="suggestion-card">
-                <h4>${suggestion.rule_name}</h4>
-                <p><strong>Table:</strong> ${suggestion.table}</p>
-                <p><strong>Colonne:</strong> ${suggestion.column}</p>
-                <p><strong>Type:</strong> ${suggestion.rule_type}</p>
-                <p class="priority priority-${suggestion.priority}">${suggestion.priority}</p>
-                <button class="btn btn-sm btn-primary" onclick="createRuleFromSuggestion(${JSON.stringify(suggestion).replace(/"/g, '&quot;')})">
-                    Créer cette règle
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <p style="color: #ef4444;">❌ Erreur réseau</p>
+                <button class="btn btn-primary" onclick="analyzeDataSource(${datasourceId})">
+                    Réessayer
                 </button>
             </div>
         `;
-    });
-    html += '</div>';
+    }
+}
 
+// Store suggestions globally to avoid JSON escaping issues
+let currentSuggestions = [];
+let currentDatasourceId = null;
+
+function displaySuggestions(suggestions, datasourceId) {
+    const container = document.getElementById('suggestions-content');
+
+    if (!suggestions || suggestions.length === 0) {
+        container.innerHTML = '<p class="text-center">Aucune suggestion disponible</p>';
+        return;
+    }
+
+    // Store suggestions globally
+    currentSuggestions = suggestions;
+    currentDatasourceId = datasourceId;
+
+    let html = `
+        <p class="text-muted" style="margin-bottom: 20px;">
+            L'IA a analysé votre source de données et suggère ${suggestions.length} règle(s) de qualité :
+        </p>
+        <div class="suggestions-grid">
+    `;
+    
+    suggestions.forEach((suggestion, index) => {
+        html += `
+            <div class="suggestion-card" id="suggestion-${index}">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                    <h4 style="margin: 0; flex: 1;">${escapeHtml(suggestion.rule_name || 'Règle suggérée')}</h4>
+                    <span class="badge badge-${suggestion.priority || 'medium'}" style="margin-left: 10px;">
+                        ${suggestion.priority || 'medium'}
+                    </span>
+                </div>
+                
+                <div style="margin: 10px 0;">
+                    <p style="margin: 5px 0;"><strong>📊 Table:</strong> ${escapeHtml(suggestion.table || 'N/A')}</p>
+                    ${suggestion.column ? `<p style="margin: 5px 0;"><strong>📝 Colonne:</strong> ${escapeHtml(suggestion.column)}</p>` : ''}
+                    <p style="margin: 5px 0;"><strong>🔧 Type:</strong> <span class="badge badge-${suggestion.rule_type}">${escapeHtml(suggestion.rule_type)}</span></p>
+                    ${suggestion.description ? `<p style="margin: 10px 0; color: #666;">${escapeHtml(suggestion.description)}</p>` : ''}
+                </div>
+                
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                    <button class="btn btn-primary" 
+                            onclick="createRuleFromSuggestion(${index})" 
+                            id="create-btn-${index}">
+                        ✨ Créer cette règle
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
     container.innerHTML = html;
 }
 
-function createRuleFromSuggestion(suggestion) {
-    // TODO: Implement rule creation from suggestion
-    alert('Fonctionnalité à implémenter : création de règle depuis suggestion');
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function createRuleFromSuggestion(index) {
+    const btn = document.getElementById(`create-btn-${index}`);
+    const originalText = btn.innerHTML;
+    
+    // Get suggestion from global array
+    const suggestion = currentSuggestions[index];
+    const datasourceId = currentDatasourceId;
+    
+    if (!suggestion || !datasourceId) {
+        alert('Erreur: suggestion ou datasource manquante');
+        return;
+    }
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Création en cours...';
+    
+    try {
+        // Prepare the rule data
+        const ruleData = {
+            datasource_id: datasourceId,
+            name: suggestion.rule_name || `Règle ${suggestion.rule_type}`,
+            description: suggestion.description || `Règle suggérée par l'IA pour ${suggestion.table}.${suggestion.column}`,
+            rule_type: suggestion.rule_type,
+            rule_config: suggestion.suggested_config || {
+                table: suggestion.table,
+                column: suggestion.column
+            },
+            is_active: true
+        };
+        
+        console.log('Creating rule:', ruleData);
+        
+        const response = await fetch('/api/rules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(ruleData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Rule created:', result);
+            
+            // Show success
+            btn.innerHTML = '✅ Règle créée !';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            
+            // Show notification
+            showSuccessNotification(`Règle "${ruleData.name}" créée avec succès !`);
+            
+            // Optionally redirect to rules page after a delay
+            setTimeout(() => {
+                if (confirm('Règle créée avec succès ! Voulez-vous voir toutes vos règles ?')) {
+                    window.location.href = '/rules';
+                }
+            }, 1000);
+        } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Error response:', errorData);
+            throw new Error(errorData.message || 'Erreur lors de la création de la règle');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        btn.innerHTML = '❌ Erreur';
+        btn.classList.add('btn-danger');
+        alert('Erreur lors de la création de la règle: ' + error.message);
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-primary');
+        }, 2000);
+    }
+}
+
+function showSuccessNotification(message) {
+    // Create a toast notification
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-success';
+    toast.innerHTML = `
+        <span>✅</span>
+        <span>${message}</span>
+    `;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 </script>
 {% endblock %}

@@ -18,6 +18,10 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/data /app/great_expectations
 
+# Copy and set entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 5000
 
-CMD ["flask", "run", "--host=0.0.0.0"]
+CMD ["/app/entrypoint.sh"]
