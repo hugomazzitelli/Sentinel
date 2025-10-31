@@ -1875,16 +1875,23 @@ main {
    =========================================== */
 
 #executionResultsModal .modal-content {
-  max-width: 800px;
-  max-height: 85vh;
+  max-width: 950px;
+  max-height: 90vh;
   overflow-y: auto;
+  padding: 0;
+}
+
+#executionResultsModal .modal-body {
+  padding: 2rem;
 }
 
 .execution-result-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .execution-result-icon {
@@ -1932,9 +1939,9 @@ main {
 /* KPIs Grid */
 .execution-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
 }
 
 .execution-kpi-card {
@@ -2004,7 +2011,8 @@ main {
   stroke: var(--success-color);
   stroke-width: 10;
   stroke-linecap: round;
-  transition: stroke-dashoffset 1s var(--ease-out);
+  /* Transition disabled to prevent performance issues */
+  /* transition: stroke-dashoffset 1s var(--ease-out); */
 }
 
 .progress-ring-text {
@@ -2045,8 +2053,8 @@ main {
   background: rgba(239, 68, 68, 0.05);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .failed-expectation-item:last-child {
@@ -2114,7 +2122,7 @@ main {
 /* Chart container */
 .execution-chart {
   margin: 2rem 0;
-  padding: 1.5rem;
+  padding: 2rem;
   background: var(--bg-elevated);
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -2127,6 +2135,11 @@ main {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
+}
+
+.execution-chart canvas {
+  min-height: 250px;
+  max-height: 300px;
 }
 
 /* Modal actions */

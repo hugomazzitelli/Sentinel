@@ -211,6 +211,7 @@ function renderExecutionChart(details) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false, // Disable animations to prevent performance issues
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -224,6 +225,7 @@ function renderExecutionChart(details) {
                     }
                 },
                 tooltip: {
+                    animation: false, // Disable tooltip animations too
                     backgroundColor: isDark ? '#1f2937' : '#ffffff',
                     titleColor: textColor,
                     bodyColor: textColor,
