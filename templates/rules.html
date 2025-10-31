@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Règles de qualité</h1>
-    <button class="btn btn-primary" onclick="showCreateRuleModal()">+ Créer une règle</button>
+    <h1>📋 Règles de qualité</h1>
+    <button class="btn btn-primary" onclick="showCreateRuleModal()">✨ Créer une règle</button>
 </div>
 
 <div class="rules-filter">
@@ -42,11 +42,16 @@
                 <p>{{ rule.description or 'Pas de description' }}</p>
                 <p class="text-muted">Créée le {{ rule.created_at.strftime('%d/%m/%Y') }}</p>
                 <div class="actions">
-                    <button class="btn btn-primary" onclick="executeRule({{ rule.id }})">
+                    <button class="btn btn-primary" onclick="executeRule({{ rule.id }}, this)">
                         ▶️ Exécuter
                     </button>
                     <button class="btn btn-outline">Modifier</button>
-                    <button class="btn btn-danger">Supprimer</button>
+                    <button class="btn btn-danger" 
+                            data-rule-id="{{ rule.id }}" 
+                            data-rule-name="{{ rule.name }}"
+                            onclick="deleteRule(this)">
+                        🗑️ Supprimer
+                    </button>
                 </div>
             </div>
         </div>
@@ -282,11 +287,15 @@ async function submitManualRule(event) {
     }
 }
 
-async function executeRule(ruleId) {
+async function executeRule(ruleId, buttonElement) {
     if (!confirm('Exécuter cette règle maintenant ?')) return;
 
     // Show loading state (you could add a better UI for this)
-    const executeBtn = event.target;
+    const executeBtn = buttonElement || window.event?.target;
+    if (!executeBtn) {
+        console.error('Could not find button element');
+        return;
+    }
     const originalText = executeBtn.innerHTML;
     executeBtn.disabled = true;
     executeBtn.innerHTML = '⏳ Exécution...';
@@ -337,6 +346,68 @@ function toggleRule(ruleId, isActive) {
     // In a real implementation, you would call an API to update the rule status
     console.log(`Toggle rule ${ruleId} to ${isActive}`);
     showSuccessToast(`Règle ${isActive ? 'activée' : 'désactivée'}`);
+}
+
+async function deleteRule(buttonElement) {
+    // Get rule info from data attributes
+    const ruleId = buttonElement.dataset.ruleId;
+    const ruleName = buttonElement.dataset.ruleName;
+    
+    // Confirmation avant suppression
+    const confirmed = confirm(`Êtes-vous sûr de vouloir supprimer la règle "${ruleName}" ?\n\nCette action est irréversible.`);
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/rules/${ruleId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Rule deleted:', result);
+            
+            // Show success notification
+            showSuccessToast(`Règle "${ruleName}" supprimée avec succès`);
+            
+            // Find the rule card to remove
+            const ruleCard = buttonElement.closest('.rule-card');
+            
+            if (ruleCard) {
+                // Animate and remove the card
+                ruleCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                ruleCard.style.opacity = '0';
+                ruleCard.style.transform = 'translateX(-20px)';
+                
+                setTimeout(() => {
+                    ruleCard.remove();
+                    
+                    // Check if there are no more rules
+                    const rulesList = document.querySelector('.rules-list');
+                    const remainingRules = rulesList.querySelectorAll('.rule-card');
+                    
+                    if (remainingRules.length === 0) {
+                        // Show empty state
+                        rulesList.innerHTML = `
+                            <div class="empty-state">
+                                <p>Aucune règle configurée</p>
+                                <p class="text-muted">Créez votre première règle ou laissez l'IA analyser vos données</p>
+                                <button class="btn btn-primary" onclick="showCreateRuleModal()">Créer une règle</button>
+                            </div>
+                        `;
+                    }
+                }, 300);
+            }
+        } else {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Erreur lors de la suppression');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Erreur lors de la suppression de la règle: ' + error.message);
+    }
 }
 
 function showSuccessToast(message) {

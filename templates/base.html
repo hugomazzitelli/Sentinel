@@ -3,20 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AI Data Quality{% endblock %}</title>
+    <title>{% block title %}Sentinel - AI Data Quality{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="container">
-            <div class="nav-brand">
-                <h1>🤖 AI Data Quality</h1>
-            </div>
+            <a href="/" class="nav-brand">
+                <h1>⚡ Sentinel</h1>
+            </a>
             <ul class="nav-links">
-                <li><a href="/">Accueil</a></li>
-                <li><a href="/datasources">Sources de données</a></li>
-                <li><a href="/rules">Règles</a></li>
-                <li><a href="/reports">Rapports</a></li>
+                <li><a href="/" class="{{ 'active' if request.path == '/' }}">Accueil</a></li>
+                <li><a href="/datasources" class="{{ 'active' if request.path == '/datasources' }}">Sources</a></li>
+                <li><a href="/rules" class="{{ 'active' if request.path == '/rules' }}">Règles</a></li>
+                <li><a href="/reports" class="{{ 'active' if request.path == '/reports' }}">Rapports</a></li>
+                <li>
+                    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode" title="Changer le thème">
+                        <span id="theme-icon">🌙</span>
+                    </button>
+                </li>
             </ul>
         </div>
     </nav>
@@ -27,11 +32,45 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 AI Data Quality App - Propulsé par Flask, Great Expectations & Ollama</p>
+            <p>⚡ Sentinel - AI Data Quality Platform</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+                Propulsé par Flask, Great Expectations & Ollama
+            </p>
         </div>
     </footer>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // Dark Mode Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // Update icon
+            document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+        
+        // Load theme from localStorage
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('theme-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        })();
+        
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 10) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

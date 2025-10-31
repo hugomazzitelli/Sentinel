@@ -138,6 +138,22 @@ def execute_rule(rule_id):
         'details': result['details']
     })
 
+@app.route('/api/rules/<int:rule_id>', methods=['DELETE'])
+def delete_rule(rule_id):
+    """Delete a quality rule"""
+    rule = QualityRule.query.get_or_404(rule_id)
+    
+    rule_name = rule.name
+    
+    # Delete the rule (cascade will delete related executions)
+    db.session.delete(rule)
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'Rule "{rule_name}" deleted successfully',
+        'id': rule_id
+    })
+
 @app.route('/api/reports', methods=['GET', 'POST'])
 def api_reports():
     if request.method == 'POST':

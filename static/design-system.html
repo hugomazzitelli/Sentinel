@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design System - Sentinel</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .demo-section {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: var(--bg-base);
+            border: 1px solid var(--border-color);
+            border-radius: 1.25rem;
+        }
+        .demo-section h2 {
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .color-swatch {
+            padding: 2rem 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="nav-brand">
+                <h1>⚡ Sentinel</h1>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#">Design System</a></li>
+                <li>
+                    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                        <span id="theme-icon">🌙</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container" style="padding: 3rem 2rem;">
+        <div class="page-header">
+            <h1>🎨 Design System</h1>
+        </div>
+
+        <!-- Colors -->
+        <div class="demo-section">
+            <h2>Couleurs</h2>
+            <div class="demo-grid">
+                <div class="color-swatch" style="background: var(--sentinel-cyan); color: white;">
+                    Cyan<br>#0ea5e9
+                </div>
+                <div class="color-swatch" style="background: var(--sentinel-green); color: white;">
+                    Green<br>#22c55e
+                </div>
+                <div class="color-swatch" style="background: var(--sentinel-purple); color: white;">
+                    Purple<br>#8b5cf6
+                </div>
+                <div class="color-swatch" style="background: var(--danger-color); color: white;">
+                    Danger<br>#ef4444
+                </div>
+                <div class="color-swatch" style="background: var(--warning-color); color: white;">
+                    Warning<br>#f59e0b
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="demo-section">
+            <h2>Boutons</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem;">
+                <button class="btn btn-primary">✨ Primary</button>
+                <button class="btn btn-secondary">📄 Secondary</button>
+                <button class="btn btn-danger">🗑️ Danger</button>
+                <button class="btn btn-outline">⚙️ Outline</button>
+                <button class="btn btn-primary" disabled>🚫 Disabled</button>
+                <button class="btn btn-primary btn-sm">Small</button>
+            </div>
+        </div>
+
+        <!-- Badges -->
+        <div class="demo-section">
+            <h2>Badges</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem;">
+                <span class="badge badge-postgresql">PostgreSQL</span>
+                <span class="badge badge-mysql">MySQL</span>
+                <span class="badge badge-csv">CSV</span>
+                <span class="badge badge-ai">🤖 IA</span>
+                <span class="badge badge-format">Format</span>
+                <span class="badge badge-range">Range</span>
+                <span class="badge badge-uniqueness">Uniqueness</span>
+                <span class="priority-high">High</span>
+                <span class="priority-medium">Medium</span>
+                <span class="priority-low">Low</span>
+            </div>
+        </div>
+
+        <!-- Cards -->
+        <div class="demo-section">
+            <h2>Cards</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Card Title</h3>
+                        <span class="badge badge-ai">🤖 IA</span>
+                    </div>
+                    <div class="card-body">
+                        <p>This is a demo card with hover effects. Try hovering over it!</p>
+                        <div class="actions">
+                            <button class="btn btn-primary btn-sm">Action</button>
+                            <button class="btn btn-outline btn-sm">Details</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Another Card</h3>
+                        <label class="toggle">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Card with toggle switch in header.</p>
+                        <div class="metric">
+                            <span class="metric-label">Quality Score</span>
+                            <span class="metric-value success">98%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forms -->
+        <div class="demo-section">
+            <h2>Formulaires</h2>
+            <div style="max-width: 500px;">
+                <div class="form-group">
+                    <label>Nom de la source</label>
+                    <input type="text" placeholder="Ex: Production Database">
+                </div>
+                <div class="form-group">
+                    <label>Type de source</label>
+                    <select>
+                        <option>PostgreSQL</option>
+                        <option>MySQL</option>
+                        <option>CSV</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea rows="3" placeholder="Décrivez votre source..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-outline">Annuler</button>
+                    <button class="btn btn-primary">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Typography -->
+        <div class="demo-section">
+            <h2>Typographie</h2>
+            <h1 style="margin: 1rem 0;">Heading 1 - Display</h1>
+            <h2 style="margin: 1rem 0;">Heading 2</h2>
+            <h3 style="margin: 1rem 0;">Heading 3</h3>
+            <p>Body text - Lorem ipsum dolor sit amet, consectetur adipiscing elit. Regular weight.</p>
+            <p><strong>Bold text</strong> - For emphasis and important information.</p>
+            <p class="text-muted">Muted text - For secondary information.</p>
+            <p class="mono">Monospace text - For code and technical content.</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="demo-section">
+            <h2>Tabs</h2>
+            <div class="tabs">
+                <button class="tab-btn active">Tab 1</button>
+                <button class="tab-btn">Tab 2</button>
+                <button class="tab-btn">Tab 3</button>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="demo-section">
+            <h2>Empty State</h2>
+            <div class="empty-state">
+                <p>No data available</p>
+                <p class="text-muted">Get started by creating your first resource</p>
+                <button class="btn btn-primary">Create Now</button>
+            </div>
+        </div>
+
+        <!-- Toast Demo -->
+        <div class="demo-section">
+            <h2>Notifications</h2>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="showToast('success')">Success Toast</button>
+                <button class="btn btn-danger" onclick="showToast('error')">Error Toast</button>
+                <button class="btn btn-secondary" onclick="showToast('info')">Info Toast</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>⚡ Sentinel Design System v1.0</p>
+        </div>
+    </footer>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Load theme
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('theme-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        })();
+
+        // Toast demo
+        function showToast(type) {
+            const messages = {
+                success: '✅ Operation completed successfully!',
+                error: '❌ Something went wrong!',
+                info: 'ℹ️ Here\'s some information'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = messages[type];
+            toast.style.cssText = `
+                position: fixed;
+                top: 24px;
+                right: 24px;
+                padding: 1rem 1.5rem;
+                border-radius: 12px;
+                color: white;
+                font-weight: 600;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            if (type === 'success') toast.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+            if (type === 'error') toast.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+            if (type === 'info') toast.style.background = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
